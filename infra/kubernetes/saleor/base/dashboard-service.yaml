@@ -1,0 +1,23 @@
+# =============================================================================
+# Saleor Dashboard Service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: saleor-dashboard
+  namespace: saleor
+  labels:
+    app.kubernetes.io/name: saleor-dashboard
+    app.kubernetes.io/component: dashboard
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: saleor-dashboard
+    app.kubernetes.io/component: dashboard
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

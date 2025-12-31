@@ -1,0 +1,10 @@
+# =============================================================================
+# Saleor Namespace
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: saleor
+  labels:
+    name: saleor
+    app.kubernetes.io/part-of: saleor

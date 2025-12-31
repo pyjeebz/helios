@@ -1,0 +1,34 @@
+# =============================================================================
+# Pod Disruption Budgets
+# =============================================================================
+# Ensures minimum availability during voluntary disruptions
+# =============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: saleor-api-pdb
+  namespace: saleor
+  labels:
+    app.kubernetes.io/name: saleor-api
+    app.kubernetes.io/component: api
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: saleor-api
+      app.kubernetes.io/component: api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: saleor-worker-pdb
+  namespace: saleor
+  labels:
+    app.kubernetes.io/name: saleor-worker
+    app.kubernetes.io/component: worker
+spec:
+  minAvailable: 0  # Workers can all be disrupted (tasks will retry)
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: saleor-worker
+      app.kubernetes.io/component: worker

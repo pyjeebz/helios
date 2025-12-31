@@ -1,0 +1,82 @@
+# =============================================================================
+# Dev Environment Kustomization
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: saleor-dev
+
+namespace: saleor
+
+resources:
+  - ../../base
+
+# Image overrides for dev
+images:
+  - name: saleor-api
+    newName: ghcr.io/saleor/saleor
+    newTag: "3.20"
+  - name: saleor-dashboard
+    newName: ghcr.io/saleor/saleor-dashboard
+    newTag: "3.20"
+
+# Labels for dev environment
+commonLabels:
+  environment: dev
+
+# Config patches
+patches:
+  # Reduce replicas for dev
+  - target:
+      kind: Deployment
+      name: saleor-api
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: saleor-api-hpa
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3
+  
+  # Reduce resources for dev
+  - target:
+      kind: Deployment
+      name: saleor-api
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "250m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "1"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "2Gi"
+
+# ConfigMap generator for dev-specific values
+configMapGenerator:
+  - name: saleor-config
+    behavior: merge
+    literals:
+      - DEBUG=True
+      - LOG_LEVEL=DEBUG
+      - GRAPHQL_PLAYGROUND=True
+
+# Secret generator (example - use external secrets in real deployments)
+secretGenerator:
+  - name: saleor-secrets
+    behavior: merge
+    literals:
+      - SECRET_KEY=dev-secret-key-change-in-production

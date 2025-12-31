@@ -1,0 +1,36 @@
+# =============================================================================
+# Saleor Kubernetes Deployment - Kustomize Base
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: saleor-base
+
+namespace: saleor
+
+resources:
+  - namespace.yaml
+  - serviceaccounts.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - api-deployment.yaml
+  - api-service.yaml
+  - worker-deployment.yaml
+  - dashboard-deployment.yaml
+  - dashboard-service.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - pdb.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: saleor
+  app.kubernetes.io/managed-by: kustomize
+
+images:
+  - name: saleor-api
+    newName: ghcr.io/saleor/saleor
+    newTag: "3.20"
+  - name: saleor-dashboard
+    newName: ghcr.io/saleor/saleor-dashboard
+    newTag: "3.20"

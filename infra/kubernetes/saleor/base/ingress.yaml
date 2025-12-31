@@ -1,0 +1,112 @@
+# =============================================================================
+# Ingress Configuration
+# =============================================================================
+# Uses GKE Ingress with Google-managed SSL certificate
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: saleor-ingress
+  namespace: saleor
+  labels:
+    app.kubernetes.io/name: saleor
+    app.kubernetes.io/component: ingress
+  annotations:
+    # Use GKE Ingress controller
+    kubernetes.io/ingress.class: "gce"
+    
+    # Enable Google-managed SSL certificate
+    networking.gke.io/managed-certificates: "saleor-certificate"
+    
+    # Redirect HTTP to HTTPS
+    kubernetes.io/ingress.allow-http: "false"
+    
+    # Backend configuration for health checks
+    cloud.google.com/backend-config: '{"default": "saleor-backend-config"}'
+spec:
+  rules:
+    # API endpoint
+    - host: "api.DOMAIN_PLACEHOLDER"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: saleor-api
+                port:
+                  number: 80
+    
+    # Dashboard endpoint
+    - host: "dashboard.DOMAIN_PLACEHOLDER"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: saleor-dashboard
+                port:
+                  number: 80
+    
+    # GraphQL Playground (optional, same as API)
+    - host: "graphql.DOMAIN_PLACEHOLDER"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: saleor-api
+                port:
+                  number: 80
+---
+# =============================================================================
+# Backend Configuration
+# =============================================================================
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: saleor-backend-config
+  namespace: saleor
+spec:
+  # Health check configuration
+  healthCheck:
+    checkIntervalSec: 15
+    timeoutSec: 5
+    healthyThreshold: 1
+    unhealthyThreshold: 2
+    type: HTTP
+    requestPath: /health/
+    port: 8000
+  
+  # Connection draining
+  connectionDraining:
+    drainingTimeoutSec: 30
+  
+  # Session affinity (optional, can help with WebSocket connections)
+  # sessionAffinity:
+  #   affinityType: "CLIENT_IP"
+  #   affinityCookieTtlSec: 3600
+  
+  # Cloud CDN (optional)
+  # cdn:
+  #   enabled: true
+  #   cachePolicy:
+  #     includeHost: true
+  #     includeProtocol: true
+  #     includeQueryString: false
+---
+# =============================================================================
+# Google-Managed Certificate
+# =============================================================================
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: saleor-certificate
+  namespace: saleor
+spec:
+  domains:
+    - "api.DOMAIN_PLACEHOLDER"
+    - "dashboard.DOMAIN_PLACEHOLDER"
+    - "graphql.DOMAIN_PLACEHOLDER"

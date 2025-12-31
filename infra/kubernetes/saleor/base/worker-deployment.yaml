@@ -1,0 +1,185 @@
+# =============================================================================
+# Saleor Worker (Celery) Deployment
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saleor-worker
+  namespace: saleor
+  labels:
+    app.kubernetes.io/name: saleor-worker
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: saleor-worker
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: saleor-worker
+        app.kubernetes.io/component: worker
+      annotations:
+        checksum/config: "CONFIG_HASH"
+    spec:
+      serviceAccountName: saleor-worker
+      
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      
+      terminationGracePeriodSeconds: 60
+      
+      containers:
+        - name: saleor-worker
+          image: saleor-api
+          imagePullPolicy: IfNotPresent
+          
+          # Override command to run Celery worker
+          command:
+            - celery
+            - -A
+            - saleor
+            - worker
+            - --loglevel=INFO
+            - --concurrency=2
+            - -E
+          
+          envFrom:
+            - configMapRef:
+                name: saleor-config
+            - secretRef:
+                name: saleor-secrets
+          
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: C_FORCE_ROOT
+              value: "false"
+          
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+              ephemeral-storage: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+              ephemeral-storage: "2Gi"
+          
+          # Liveness probe - check if worker is responsive
+          livenessProbe:
+            exec:
+              command:
+                - celery
+                - -A
+                - saleor
+                - inspect
+                - ping
+                - --timeout=10
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 15
+            failureThreshold: 3
+          
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: media
+              mountPath: /app/media
+      
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: media
+          emptyDir: {}
+---
+# =============================================================================
+# Saleor Beat (Celery Scheduler) Deployment
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saleor-beat
+  namespace: saleor
+  labels:
+    app.kubernetes.io/name: saleor-beat
+    app.kubernetes.io/component: scheduler
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # Only one beat instance allowed
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: saleor-beat
+      app.kubernetes.io/component: scheduler
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: saleor-beat
+        app.kubernetes.io/component: scheduler
+      annotations:
+        checksum/config: "CONFIG_HASH"
+    spec:
+      serviceAccountName: saleor-worker
+      
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      
+      containers:
+        - name: saleor-beat
+          image: saleor-api
+          imagePullPolicy: IfNotPresent
+          
+          command:
+            - celery
+            - -A
+            - saleor
+            - beat
+            - --loglevel=INFO
+          
+          envFrom:
+            - configMapRef:
+                name: saleor-config
+            - secretRef:
+                name: saleor-secrets
+          
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+              ephemeral-storage: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+              ephemeral-storage: "1Gi"
+          
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      
+      volumes:
+        - name: tmp
+          emptyDir: {}

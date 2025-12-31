@@ -1,0 +1,56 @@
+# =============================================================================
+# Saleor ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: saleor-config
+  namespace: saleor
+  labels:
+    app.kubernetes.io/name: saleor
+    app.kubernetes.io/component: config
+data:
+  # Django settings
+  DEBUG: "False"
+  ALLOWED_HOSTS: "*"
+  
+  # Database (connection details - password from secret)
+  DATABASE_HOST: "DB_HOST_PLACEHOLDER"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "saleor"
+  
+  # Redis
+  REDIS_URL: "REDIS_URL_PLACEHOLDER"
+  CELERY_BROKER_URL: "REDIS_URL_PLACEHOLDER"
+  
+  # GCS Storage
+  DEFAULT_FILE_STORAGE: "storages.backends.gcloud.GoogleCloudStorage"
+  GS_BUCKET_NAME: "MEDIA_BUCKET_PLACEHOLDER"
+  GS_DEFAULT_ACL: "publicRead"
+  GS_QUERYSTRING_AUTH: "False"
+  
+  # Email (use console backend for dev)
+  EMAIL_BACKEND: "django.core.mail.backends.console.EmailBackend"
+  
+  # Saleor specific
+  DEFAULT_COUNTRY: "US"
+  DEFAULT_CURRENCY: "USD"
+  
+  # GraphQL
+  GRAPHQL_PLAYGROUND: "True"
+  
+  # Logging
+  LOG_LEVEL: "INFO"
+  
+  # JWT
+  JWT_TTL_ACCESS: "300"  # 5 minutes
+  JWT_TTL_REFRESH: "2592000"  # 30 days
+  
+  # Performance
+  ENABLE_DEBUG_TOOLBAR: "False"
+  
+  # Plugins
+  PLUGINS: "saleor.plugins.webhook.plugin.WebhookPlugin"
+  
+  project_id: "gen-lang-client-0702968356"
+  region: "us-central1"
