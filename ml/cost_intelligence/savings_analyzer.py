@@ -2,24 +2,21 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Optional
 
 from .config import config
-from .models import (
-    OptimizationType, SavingsEvent, SavingsSummary, 
-    PotentialSaving, TimeRange
-)
+from .models import OptimizationType, PotentialSaving, SavingsEvent, SavingsSummary, TimeRange
 
 logger = logging.getLogger(__name__)
 
 
 class SavingsAnalyzer:
     """Analyze cost savings from optimizations."""
-    
+
     def __init__(self):
         self.pricing = config.pricing
-        self._savings_history: List[SavingsEvent] = []
-        
+        self._savings_history: list[SavingsEvent] = []
+
     def record_scaling_event(
         self,
         workload: str,
@@ -30,7 +27,7 @@ class SavingsAnalyzer:
         memory_per_replica: float
     ) -> SavingsEvent:
         """Record a scaling event and calculate savings.
-        
+
         Args:
             workload: Workload name
             namespace: Namespace
@@ -38,7 +35,7 @@ class SavingsAnalyzer:
             after_replicas: Replica count after scaling
             cpu_per_replica: CPU cores per replica
             memory_per_replica: Memory GB per replica
-            
+
         Returns:
             SavingsEvent with calculated savings
         """
@@ -47,13 +44,13 @@ class SavingsAnalyzer:
             cpu_per_replica * self.pricing.cpu_per_core_hour +
             memory_per_replica * self.pricing.memory_per_gb_hour
         )
-        
+
         before_cost = before_replicas * hourly_per_replica
         after_cost = after_replicas * hourly_per_replica
-        
+
         # Savings is positive when scaling down
         savings_hourly = before_cost - after_cost
-        
+
         if savings_hourly > 0:
             action = f"Scaled down from {before_replicas} to {after_replicas} replicas"
             opt_type = OptimizationType.AUTOSCALING
@@ -65,7 +62,7 @@ class SavingsAnalyzer:
         else:
             action = "No scaling change"
             opt_type = OptimizationType.AUTOSCALING
-            
+
         event = SavingsEvent(
             timestamp=datetime.utcnow(),
             workload=workload,
@@ -79,21 +76,21 @@ class SavingsAnalyzer:
             before_cost=before_cost,
             after_cost=after_cost
         )
-        
+
         self._savings_history.append(event)
         return event
-    
+
     def get_savings_summary(
         self,
         period: TimeRange = TimeRange.MONTH,
         namespace: Optional[str] = None
     ) -> SavingsSummary:
         """Get savings summary for a period.
-        
+
         Args:
             period: Time range
             namespace: Optional namespace filter
-            
+
         Returns:
             SavingsSummary with totals and breakdown
         """
@@ -109,43 +106,43 @@ class SavingsAnalyzer:
             cutoff = now - timedelta(days=30)
         else:
             cutoff = now - timedelta(days=90)
-        
+
         # Filter events
         events = [
             e for e in self._savings_history
-            if e.timestamp >= cutoff and 
+            if e.timestamp >= cutoff and
                (namespace is None or e.namespace == namespace)
         ]
-        
+
         # Calculate totals
         total_savings = sum(e.savings_monthly for e in events)
-        
+
         # Group by type
-        savings_by_type: Dict[OptimizationType, float] = {}
+        savings_by_type: dict[OptimizationType, float] = {}
         for e in events:
             if e.optimization_type not in savings_by_type:
                 savings_by_type[e.optimization_type] = 0
             savings_by_type[e.optimization_type] += e.savings_monthly
-        
+
         # Group by namespace
-        savings_by_namespace: Dict[str, float] = {}
+        savings_by_namespace: dict[str, float] = {}
         for e in events:
             if e.namespace not in savings_by_namespace:
                 savings_by_namespace[e.namespace] = 0
             savings_by_namespace[e.namespace] += e.savings_monthly
-        
+
         # Add simulated historical savings if no real data
         if not events:
             events, total_savings, savings_by_type, savings_by_namespace = \
                 self._generate_simulated_savings(period)
-        
+
         # Calculate potential additional savings
         potential = self._calculate_potential_savings()
-        
+
         # ROI calculation (savings vs infrastructure cost)
         monthly_infra_cost = 200  # Estimated monthly cost
         roi = (total_savings / monthly_infra_cost * 100) if monthly_infra_cost > 0 else 0
-        
+
         return SavingsSummary(
             period=period,
             total_savings=total_savings,
@@ -155,11 +152,11 @@ class SavingsAnalyzer:
             potential_additional_savings=potential,
             roi_percent=roi
         )
-    
+
     def _generate_simulated_savings(self, period: TimeRange):
         """Generate simulated savings data for demo purposes."""
         now = datetime.utcnow()
-        
+
         events = [
             SavingsEvent(
                 timestamp=now - timedelta(hours=2),
@@ -201,29 +198,29 @@ class SavingsAnalyzer:
                 after_cost=0.02
             ),
         ]
-        
+
         total_savings = sum(e.savings_monthly for e in events)
-        
+
         savings_by_type = {
             OptimizationType.AUTOSCALING: 25.20,
             OptimizationType.RIGHTSIZING: 7.20
         }
-        
+
         savings_by_namespace = {
             "saleor": 25.20,
             "helios": 7.20
         }
-        
+
         return events, total_savings, savings_by_type, savings_by_namespace
-    
+
     def _calculate_potential_savings(self) -> float:
         """Calculate potential additional savings from optimization opportunities."""
         # Simulated potential savings based on typical inefficiencies
         return 45.00  # $45/month potential additional savings
-    
-    def get_potential_savings(self) -> List[PotentialSaving]:
+
+    def get_potential_savings(self) -> list[PotentialSaving]:
         """Get list of potential savings opportunities.
-        
+
         Returns:
             List of potential savings with recommendations
         """

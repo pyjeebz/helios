@@ -2,23 +2,26 @@
 
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from prometheus_client import Counter, Gauge, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from starlette.responses import Response
 
 from .config import config
 from .cost_calculator import cost_calculator
-from .savings_analyzer import savings_analyzer
 from .efficiency import efficiency_analyzer
 from .forecaster import cost_forecaster
 from .models import (
-    TimeRange, HealthResponse, CostResponse, SavingsResponse,
-    EfficiencyResponse, ForecastResponse
+    CostResponse,
+    EfficiencyResponse,
+    ForecastResponse,
+    HealthResponse,
+    SavingsResponse,
+    TimeRange,
 )
+from .savings_analyzer import savings_analyzer
 
 # Configure logging
 logging.basicConfig(
@@ -77,23 +80,23 @@ def update_metrics():
                         namespace=ns.namespace,
                         resource=resource.resource.value
                     ).set(resource.hourly_cost)
-        
+
         # Update savings metrics
         savings = savings_analyzer.get_savings_summary()
         for opt_type, amount in savings.savings_by_type.items():
             SAVINGS_GAUGE.labels(type=opt_type.value).set(amount)
-        
+
         # Update efficiency metrics
         efficiency = efficiency_analyzer.get_efficiency_summary()
         for workload in efficiency.workloads:
             EFFICIENCY_GAUGE.labels(namespace=workload.namespace).set(
                 workload.overall_efficiency
             )
-        
+
         # Update forecast metrics
         forecast = cost_forecaster.forecast(TimeRange.MONTH, costs.total_daily)
         FORECAST_GAUGE.labels(period="30d").set(forecast.projected_total)
-        
+
     except Exception as e:
         logger.error(f"Error updating metrics: {e}")
 
@@ -159,7 +162,7 @@ async def get_costs(
     with REQUEST_LATENCY.labels(endpoint="/costs").time():
         try:
             costs = cost_calculator.get_current_costs(period)
-            
+
             # Filter by namespace if specified
             if namespace:
                 costs.namespaces = [
@@ -168,7 +171,7 @@ async def get_costs(
                 costs.total_hourly = sum(ns.total_hourly for ns in costs.namespaces)
                 costs.total_daily = costs.total_hourly * 24
                 costs.total_monthly = costs.total_daily * 30
-            
+
             REQUEST_COUNT.labels(endpoint="/costs", method="GET", status="200").inc()
             return CostResponse(
                 success=True,
@@ -208,7 +211,7 @@ async def get_savings(
     with REQUEST_LATENCY.labels(endpoint="/savings").time():
         try:
             savings = savings_analyzer.get_savings_summary(period, namespace)
-            
+
             REQUEST_COUNT.labels(endpoint="/savings", method="GET", status="200").inc()
             return SavingsResponse(
                 success=True,
@@ -225,7 +228,7 @@ async def get_potential_savings():
     """Get potential savings opportunities."""
     opportunities = savings_analyzer.get_potential_savings()
     total_potential = sum(o.potential_savings_monthly for o in opportunities)
-    
+
     return {
         "total_potential_monthly": round(total_potential, 2),
         "opportunities_count": len(opportunities),
@@ -245,7 +248,7 @@ async def get_efficiency(
     with REQUEST_LATENCY.labels(endpoint="/efficiency").time():
         try:
             efficiency = efficiency_analyzer.get_efficiency_summary(namespace)
-            
+
             REQUEST_COUNT.labels(endpoint="/efficiency", method="GET", status="200").inc()
             return EfficiencyResponse(
                 success=True,
@@ -261,12 +264,12 @@ async def get_efficiency(
 async def get_efficiency_summary():
     """Get simplified efficiency summary."""
     efficiency = efficiency_analyzer.get_efficiency_summary()
-    
+
     # Count workloads by status
     oversized = sum(1 for w in efficiency.workloads if w.is_oversized)
     undersized = sum(1 for w in efficiency.workloads if w.is_undersized)
     optimal = len(efficiency.workloads) - oversized - undersized
-    
+
     return {
         "overall_efficiency": round(efficiency.overall_efficiency * 100, 1),
         "total_waste_monthly": round(efficiency.total_waste_monthly, 2),
@@ -274,7 +277,7 @@ async def get_efficiency_summary():
         "oversized_count": oversized,
         "undersized_count": undersized,
         "optimal_count": optimal,
-        "top_opportunity": efficiency.top_opportunities[0].workload 
+        "top_opportunity": efficiency.top_opportunities[0].workload
             if efficiency.top_opportunities else None
     }
 
@@ -294,7 +297,7 @@ async def get_forecast(
             # Get current costs for base
             costs = cost_calculator.get_current_costs()
             current_daily = costs.total_daily
-            
+
             # Filter by namespace if specified
             if namespace:
                 ns_costs = [ns for ns in costs.namespaces if ns.namespace == namespace]
@@ -302,9 +305,9 @@ async def get_forecast(
                     current_daily = ns_costs[0].total_daily
                 else:
                     current_daily = 0
-            
+
             forecast = cost_forecaster.forecast(period, current_daily, namespace)
-            
+
             REQUEST_COUNT.labels(endpoint="/forecast", method="GET", status="200").inc()
             return ForecastResponse(
                 success=True,
@@ -324,13 +327,13 @@ async def get_budget_status(
     """Get budget status and projections."""
     costs = cost_calculator.get_current_costs()
     current_spend = costs.total_daily * days_elapsed
-    
+
     status = cost_forecaster.get_budget_status(
         monthly_budget=monthly_budget,
         current_spend=current_spend,
         days_elapsed=days_elapsed
     )
-    
+
     return {
         "monthly_budget": monthly_budget,
         "current_spend": round(current_spend, 2),

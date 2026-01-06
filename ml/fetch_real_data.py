@@ -1,8 +1,9 @@
 """Fetch REAL metrics from Cloud Monitoring for ML training."""
 import os
-from google.cloud import monitoring_v3
 from datetime import datetime, timedelta
+
 import pandas as pd
+from google.cloud import monitoring_v3
 
 client = monitoring_v3.MetricServiceClient()
 project_id = os.environ.get("GCP_PROJECT_ID", "your-gcp-project-id")
@@ -26,7 +27,7 @@ aggregation = monitoring_v3.Aggregation(
 def fetch_metric(metric_type, namespace="saleor"):
     """Fetch a metric and return as list of records."""
     filter_str = f'metric.type = "{metric_type}" AND resource.labels.namespace_name = "{namespace}"'
-    
+
     request = monitoring_v3.ListTimeSeriesRequest(
         name=project_name,
         filter=filter_str,
@@ -34,7 +35,7 @@ def fetch_metric(metric_type, namespace="saleor"):
         aggregation=aggregation,
         view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
     )
-    
+
     records = []
     try:
         for ts in client.list_time_series(request=request):
@@ -42,7 +43,7 @@ def fetch_metric(metric_type, namespace="saleor"):
                 timestamp = point.interval.end_time
                 if hasattr(timestamp, 'replace'):
                     timestamp = timestamp.replace(tzinfo=None)
-                
+
                 # Extract value - try different fields
                 value = 0.0
                 try:
@@ -55,14 +56,14 @@ def fetch_metric(metric_type, namespace="saleor"):
                             value = point.value.distribution_value.mean
                         except:
                             pass
-                    
+
                 records.append({
                     "timestamp": timestamp,
                     "value": value,
                 })
     except Exception as e:
         print(f"  Error: {e}")
-    
+
     return records
 
 # Fetch metrics for saleor namespace
@@ -135,18 +136,18 @@ if dfs:
     result = dfs[0]
     for df in dfs[1:]:
         result = pd.merge(result, df, on="timestamp", how="outer")
-    
+
     result = result.sort_values("timestamp").reset_index(drop=True)
-    
+
     print(f"Final DataFrame shape: {result.shape}")
     print(f"Columns: {list(result.columns)}")
-    print(f"\nData sample:")
+    print("\nData sample:")
     print(result.head(10))
-    print(f"\nData tail:")
+    print("\nData tail:")
     print(result.tail(5))
-    
+
     # Save to CSV
     result.to_csv("data/training_data_real.csv", index=False)
-    print(f"\n✓ Saved to data/training_data_real.csv")
+    print("\n✓ Saved to data/training_data_real.csv")
 else:
     print("No data to combine")

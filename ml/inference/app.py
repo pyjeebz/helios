@@ -9,7 +9,7 @@ import logging
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -70,24 +70,24 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Helios Inference Service...")
     init_metrics()
-    
+
     # Load models
     start = time.time()
     results = model_manager.load_models()
     load_time = time.time() - start
-    
+
     loaded_count = sum(1 for v in results.values() if v)
     set_models_loaded(loaded_count)
     logger.info(f"Loaded {loaded_count} models in {load_time:.2f}s")
-    
+
     if loaded_count > 0:
         set_ready(True)
         logger.info("Service is ready")
     else:
         logger.warning("No models loaded, service may not function correctly")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Helios Inference Service...")
     set_ready(False)
@@ -127,9 +127,9 @@ app.add_middleware(
 async def metrics_middleware(request: Request, call_next):
     """Record request metrics."""
     start_time = time.time()
-    
+
     response = await call_next(request)
-    
+
     # Record metrics (skip metrics endpoint to avoid recursion)
     if request.url.path != "/metrics":
         latency = time.time() - start_time
@@ -139,7 +139,7 @@ async def metrics_middleware(request: Request, call_next):
             status=response.status_code,
             latency=latency,
         )
-    
+
     return response
 
 
@@ -172,7 +172,7 @@ async def health_check() -> HealthStatus:
 async def readiness_check() -> ReadyStatus:
     """Check if service is ready to receive traffic."""
     models_ready = model_manager.is_loaded
-    
+
     return ReadyStatus(
         ready=models_ready,
         models_ready=models_ready,
@@ -211,7 +211,7 @@ async def list_models() -> list[ModelInfo]:
 )
 async def predict(request: PredictionRequest) -> PredictionResponse:
     """Generate time-series predictions for a metric.
-    
+
     Forecasts future values based on historical patterns using
     the specified model (baseline, prophet, or xgboost).
     """
@@ -220,12 +220,12 @@ async def predict(request: PredictionRequest) -> PredictionResponse:
             status_code=503,
             detail="Models not loaded, service not ready"
         )
-    
+
     start = time.time()
-    
+
     try:
         response = predictor_service.predict(request)
-        
+
         # Record metrics
         latency = time.time() - start
         record_prediction(
@@ -234,9 +234,9 @@ async def predict(request: PredictionRequest) -> PredictionResponse:
             latency=latency,
             cache_hit=response.metadata.get("cache_hit", False),
         )
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Prediction failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -255,9 +255,9 @@ async def batch_predict(request: BatchPredictionRequest) -> BatchPredictionRespo
             status_code=503,
             detail="Models not loaded, service not ready"
         )
-    
+
     predictions = {}
-    
+
     for metric in request.metrics:
         single_request = PredictionRequest(
             metric=metric,
@@ -265,7 +265,7 @@ async def batch_predict(request: BatchPredictionRequest) -> BatchPredictionRespo
             model=request.model,
         )
         predictions[metric.value] = predictor_service.predict(single_request)
-    
+
     return BatchPredictionResponse(predictions=predictions)
 
 
@@ -284,24 +284,24 @@ async def batch_predict(request: BatchPredictionRequest) -> BatchPredictionRespo
 )
 async def detect_anomalies(request: AnomalyRequest) -> AnomalyResponse:
     """Detect anomalies in provided metrics data.
-    
+
     Analyzes the provided data points and identifies values
     that deviate significantly from expected patterns.
     """
     start = time.time()
-    
+
     try:
         response = anomaly_detector_service.detect(request)
-        
+
         # Record metrics
         latency = time.time() - start
         record_detection(response.data_points_analyzed, latency)
-        
+
         for anomaly in response.anomalies:
             record_anomaly(anomaly.metric, anomaly.severity.value)
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Anomaly detection failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -324,15 +324,15 @@ async def get_recommendations(
     request: RecommendationRequest
 ) -> RecommendationResponse:
     """Generate scaling recommendations for a workload.
-    
+
     Analyzes current state and predictions to provide
     proactive scaling recommendations.
     """
     start = time.time()
-    
+
     try:
         response = recommender_service.recommend(request)
-        
+
         # Record metrics
         latency = time.time() - start
         for rec in response.recommendations:
@@ -342,16 +342,16 @@ async def get_recommendations(
                     action=action.action.value,
                     latency=latency,
                 )
-                
+
                 if action.target_replicas is not None:
                     set_recommended_replicas(
                         workload=request.workload,
                         namespace=request.namespace,
                         replicas=action.target_replicas,
                     )
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Recommendation generation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -384,7 +384,7 @@ async def prometheus_metrics():
     tags=["Info"],
     summary="Service info",
 )
-async def root() -> Dict[str, Any]:
+async def root() -> dict[str, Any]:
     """Get service information."""
     return {
         "service": "helios-inference",
@@ -400,7 +400,7 @@ async def root() -> Dict[str, Any]:
     tags=["Info"],
     summary="Service statistics",
 )
-async def get_stats() -> Dict[str, Any]:
+async def get_stats() -> dict[str, Any]:
     """Get service statistics."""
     return {
         "uptime_seconds": get_uptime(),
@@ -447,7 +447,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 def main():
     """Run the service."""
     import uvicorn
-    
+
     uvicorn.run(
         "ml.inference.app:app",
         host=config.server.host,

@@ -3,14 +3,12 @@
 import logging
 import os
 import pickle
-import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import joblib
 import numpy as np
-import pandas as pd
 
 from .config import config
 from .models import ModelInfo, ModelType
@@ -28,21 +26,21 @@ except ImportError:
 
 class ModelManager:
     """Manages loading, caching, and serving ML models."""
-    
+
     def __init__(self, models_dir: Optional[str] = None, gcs_bucket: Optional[str] = None):
         self.models_dir = Path(models_dir or config.model.models_dir)
         self.gcs_bucket = gcs_bucket or os.environ.get("MODELS_GCS_BUCKET")
-        self._models: Dict[str, Any] = {}
-        self._model_info: Dict[str, ModelInfo] = {}
+        self._models: dict[str, Any] = {}
+        self._model_info: dict[str, ModelInfo] = {}
         self._loaded_at: Optional[datetime] = None
         self._gcs_client = None
-        
+
     def _get_gcs_client(self):
         """Get or create GCS client."""
         if self._gcs_client is None and HAS_GCS:
             self._gcs_client = storage.Client()
         return self._gcs_client
-    
+
     def _download_from_gcs(self, gcs_path: str, local_path: Path) -> bool:
         """Download a file from GCS."""
         if not HAS_GCS or not self.gcs_bucket:
@@ -58,53 +56,53 @@ class ModelManager:
         except Exception as e:
             logger.warning(f"Failed to download from GCS: {e}")
             return False
-        
+
     @property
     def is_loaded(self) -> bool:
         """Check if any models are loaded."""
         return len(self._models) > 0
-    
+
     @property
     def model_count(self) -> int:
         """Number of loaded models."""
         return len(self._models)
-    
-    def load_models(self) -> Dict[str, bool]:
+
+    def load_models(self) -> dict[str, bool]:
         """Load all enabled models from disk.
-        
+
         Returns:
             Dict mapping model name to load success status
         """
         results = {}
-        
+
         # Load baseline model
         if config.model.baseline_enabled:
             results["baseline"] = self._load_baseline()
-        
+
         # Load Prophet model
         if config.model.prophet_enabled:
             results["prophet"] = self._load_prophet()
-        
+
         # Load XGBoost anomaly detector
         if config.model.xgboost_enabled:
             results["xgboost"] = self._load_xgboost()
-        
+
         self._loaded_at = datetime.utcnow()
         logger.info(f"Loaded {sum(results.values())}/{len(results)} models")
-        
+
         return results
-    
+
     def _load_baseline(self) -> bool:
         """Load baseline model (CPU forecaster from GCS)."""
         try:
             # Try to load CPU forecaster from GCS
             model_path = self.models_dir / "cpu_forecaster" / "1.0.0" / "model.pkl"
             gcs_path = "cpu_forecaster/1.0.0/model.pkl"
-            
+
             # Download from GCS if not exists locally
             if not model_path.exists() and self.gcs_bucket:
                 self._download_from_gcs(gcs_path, model_path)
-            
+
             if model_path.exists():
                 with open(model_path, 'rb') as f:
                     model_data = pickle.load(f)
@@ -139,7 +137,7 @@ class ModelManager:
         except Exception as e:
             logger.error(f"Failed to load baseline model: {e}")
             return False
-    
+
     def _load_prophet(self) -> bool:
         """Load Prophet model."""
         try:
@@ -162,18 +160,18 @@ class ModelManager:
         except Exception as e:
             logger.error(f"Failed to load Prophet model: {e}")
             return False
-    
+
     def _load_xgboost(self) -> bool:
         """Load XGBoost anomaly detector from GCS."""
         try:
             # Try to load anomaly detector from GCS
             model_path = self.models_dir / "anomaly_detector" / "1.0.0" / "model.pkl"
             gcs_path = "anomaly_detector/1.0.0/model.pkl"
-            
+
             # Download from GCS if not exists locally
             if not model_path.exists() and self.gcs_bucket:
                 self._download_from_gcs(gcs_path, model_path)
-            
+
             if model_path.exists():
                 with open(model_path, 'rb') as f:
                     model_data = pickle.load(f)
@@ -207,7 +205,7 @@ class ModelManager:
         except Exception as e:
             logger.error(f"Failed to load XGBoost model: {e}")
             return False
-    
+
     def get_model(self, model_type: ModelType) -> Optional[Any]:
         """Get a loaded model by type."""
         type_to_name = {
@@ -217,7 +215,7 @@ class ModelManager:
         }
         name = type_to_name.get(model_type)
         return self._models.get(name)
-    
+
     def get_model_info(self, model_type: ModelType) -> Optional[ModelInfo]:
         """Get info about a loaded model."""
         type_to_name = {
@@ -227,12 +225,12 @@ class ModelManager:
         }
         name = type_to_name.get(model_type)
         return self._model_info.get(name)
-    
-    def list_models(self) -> List[ModelInfo]:
+
+    def list_models(self) -> list[ModelInfo]:
         """List all loaded models."""
         return list(self._model_info.values())
-    
-    def get_status(self) -> Dict[str, Any]:
+
+    def get_status(self) -> dict[str, Any]:
         """Get model manager status."""
         return {
             "loaded": self.is_loaded,
@@ -244,11 +242,11 @@ class ModelManager:
 
 class InMemoryBaseline:
     """Simple in-memory baseline model for when no trained model exists."""
-    
+
     def __init__(self, window: int = 12):
         self.window = window
-        self._history: Dict[str, List[float]] = {}
-    
+        self._history: dict[str, list[float]] = {}
+
     def update(self, metric: str, value: float):
         """Update history with new value."""
         if metric not in self._history:
@@ -256,79 +254,79 @@ class InMemoryBaseline:
         self._history[metric].append(value)
         # Keep only last 1000 points
         self._history[metric] = self._history[metric][-1000:]
-    
-    def predict(self, metric: str, periods: int) -> List[float]:
+
+    def predict(self, metric: str, periods: int) -> list[float]:
         """Predict future values using simple moving average."""
         history = self._history.get(metric, [])
-        
+
         if len(history) < self.window:
             # Not enough data, return flat prediction
             last_value = history[-1] if history else 0.0
             return [last_value] * periods
-        
+
         # Calculate moving average
         ma = np.mean(history[-self.window:])
-        
+
         # Calculate trend
         if len(history) >= self.window * 2:
             prev_ma = np.mean(history[-self.window*2:-self.window])
             trend = (ma - prev_ma) / self.window
         else:
             trend = 0.0
-        
+
         # Generate predictions
         predictions = []
         for i in range(periods):
             pred = ma + trend * (i + 1)
             predictions.append(max(0, pred))  # Ensure non-negative
-        
+
         return predictions
-    
+
     def get_confidence_interval(self, metric: str, periods: int, confidence: float = 0.95) -> tuple:
         """Get confidence interval for predictions."""
         history = self._history.get(metric, [])
-        
+
         if len(history) < self.window:
             return ([0.0] * periods, [1.0] * periods)
-        
+
         std = np.std(history[-self.window:])
         z_score = 1.96 if confidence == 0.95 else 2.576  # 95% or 99%
-        
+
         predictions = self.predict(metric, periods)
         lower = [max(0, p - z_score * std) for p in predictions]
         upper = [p + z_score * std for p in predictions]
-        
+
         return (lower, upper)
 
 
 class TrainedForecaster:
     """Wrapper for trained XGBoost forecasting model."""
-    
+
     def __init__(self, model: Any, scaler: Any, lookback: int = 12):
         self.model = model
         self.scaler = scaler
         self.lookback = lookback
-        self._history: Dict[str, List[float]] = {}
-    
+        self._history: dict[str, list[float]] = {}
+
     def update(self, metric: str, value: float):
         """Update history with new value."""
         if metric not in self._history:
             self._history[metric] = []
         self._history[metric].append(value)
         self._history[metric] = self._history[metric][-1000:]
-    
-    def predict(self, metric: str, periods: int) -> List[float]:
+
+    def predict(self, metric: str, periods: int) -> list[float]:
         """Predict using trained model."""
         history = self._history.get(metric, [])
-        
+
         if len(history) < self.lookback or self.model is None:
             # Fall back to simple prediction
             last_value = history[-1] if history else 0.5
             return [last_value] * periods
-        
+
         predictions = []
         current_history = list(history[-self.lookback:])
-        
+
         for _ in range(periods):
             # Create features
             lags = np.array(current_history[-self.lookback:])
@@ -336,25 +334,25 @@ class TrainedForecaster:
             rolling_std = np.std(lags)
             rolling_min = np.min(lags)
             rolling_max = np.max(lags)
-            
+
             # Time features (use defaults)
             features = np.concatenate([
                 lags,
                 [rolling_mean, rolling_std, rolling_min, rolling_max],
                 [0.5, 0.5, 1.0, 0.0]  # Default time features
             ]).reshape(1, -1)
-            
+
             # Scale and predict
             if self.scaler:
                 features = self.scaler.transform(features)
-            
+
             pred = float(self.model.predict(features)[0])
             pred = max(0, min(1, pred))  # Clamp to [0, 1]
             predictions.append(pred)
             current_history.append(pred)
-        
+
         return predictions
-    
+
     def get_confidence_interval(self, metric: str, periods: int, confidence: float = 0.95) -> tuple:
         """Get confidence intervals."""
         predictions = self.predict(metric, periods)
@@ -367,50 +365,50 @@ class TrainedForecaster:
 
 class TrainedAnomalyDetector:
     """Wrapper for trained Isolation Forest anomaly detector."""
-    
+
     def __init__(self, model: Any, scaler: Any, threshold_sigma: float = 2.5):
         self.model = model  # IsolationForest
         self.scaler = scaler
         self.threshold_sigma = threshold_sigma
-        self._stats: Dict[str, Dict[str, float]] = {}
-    
-    def fit(self, metric: str, values: List[float]):
+        self._stats: dict[str, dict[str, float]] = {}
+
+    def fit(self, metric: str, values: list[float]):
         """Store statistics for the metric."""
         if len(values) >= 2:
             self._stats[metric] = {
                 "mean": np.mean(values),
                 "std": max(np.std(values), 0.001)
             }
-    
+
     def score(self, metric: str, value: float) -> float:
         """Calculate anomaly score."""
         if self.model is None:
             # Fall back to z-score
             stats = self._stats.get(metric, {"mean": 0.5, "std": 0.2})
             return abs(value - stats["mean"]) / stats["std"]
-        
+
         # Use Isolation Forest decision function (inverted so higher = more anomalous)
         features = np.array([[value, value]])  # Simplified 2D input
         if self.scaler:
             features = self.scaler.transform(features)
         score = -self.model.decision_function(features)[0]
         return max(0, score * 5)  # Scale to roughly match sigma
-    
+
     def is_anomaly(self, metric: str, value: float) -> bool:
         """Check if value is anomaly."""
         return self.score(metric, value) > self.threshold_sigma
-    
-    def detect(self, data: Dict[str, List[float]]) -> List[Dict[str, Any]]:
+
+    def detect(self, data: dict[str, list[float]]) -> list[dict[str, Any]]:
         """Detect anomalies in data."""
         anomalies = []
-        
+
         for metric, values in data.items():
             if len(values) < 5:
                 continue
-                
+
             # Fit on data
             self.fit(metric, values)
-            
+
             # Check each point
             for i, value in enumerate(values):
                 score = self.score(metric, value)
@@ -422,55 +420,55 @@ class TrainedAnomalyDetector:
                         "score": score,
                         "expected": self._stats.get(metric, {}).get("mean", 0.5)
                     })
-        
+
         return anomalies
 
 
 class InMemoryAnomalyDetector:
     """Simple in-memory anomaly detector for when no trained model exists."""
-    
+
     def __init__(self, threshold_sigma: float = 2.5):
         self.threshold_sigma = threshold_sigma
-        self._stats: Dict[str, Dict[str, float]] = {}
-    
-    def fit(self, metric: str, values: List[float]):
+        self._stats: dict[str, dict[str, float]] = {}
+
+    def fit(self, metric: str, values: list[float]):
         """Fit detector on historical data."""
         if len(values) < 2:
             self._stats[metric] = {"mean": values[0] if values else 0.0, "std": 0.1}
             return
-        
+
         self._stats[metric] = {
             "mean": np.mean(values),
             "std": max(np.std(values), 0.001)  # Avoid division by zero
         }
-    
+
     def score(self, metric: str, value: float) -> float:
         """Calculate anomaly score for a value."""
         stats = self._stats.get(metric, {"mean": 0.0, "std": 1.0})
         return abs(value - stats["mean"]) / stats["std"]
-    
+
     def is_anomaly(self, metric: str, value: float) -> bool:
         """Check if value is an anomaly."""
         return self.score(metric, value) > self.threshold_sigma
-    
-    def detect(self, data: Dict[str, List[float]]) -> List[Dict[str, Any]]:
+
+    def detect(self, data: dict[str, list[float]]) -> list[dict[str, Any]]:
         """Detect anomalies in data.
-        
+
         Args:
             data: Dict mapping metric name to list of values
-            
+
         Returns:
             List of detected anomalies
         """
         anomalies = []
-        
+
         for metric, values in data.items():
             # Auto-fit if not already done
             if metric not in self._stats and len(values) > 10:
                 # Use first 80% for fitting
                 fit_size = int(len(values) * 0.8)
                 self.fit(metric, values[:fit_size])
-            
+
             for i, value in enumerate(values):
                 score = self.score(metric, value)
                 if score > self.threshold_sigma:
@@ -481,7 +479,7 @@ class InMemoryAnomalyDetector:
                         "score": score,
                         "expected": self._stats.get(metric, {}).get("mean", 0.0)
                     })
-        
+
         return anomalies
 
 

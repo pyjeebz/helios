@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -51,7 +51,7 @@ class WorkloadCost(BaseModel):
     name: str
     namespace: str
     replicas: int
-    resources: List[ResourceCost]
+    resources: list[ResourceCost]
     total_hourly: float
     total_daily: float
     total_monthly: float
@@ -61,7 +61,7 @@ class WorkloadCost(BaseModel):
 class NamespaceCost(BaseModel):
     """Cost breakdown for a namespace."""
     namespace: str
-    workloads: List[WorkloadCost]
+    workloads: list[WorkloadCost]
     total_hourly: float
     total_daily: float
     total_monthly: float
@@ -72,7 +72,7 @@ class CostSummary(BaseModel):
     """Overall cost summary."""
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     period: TimeRange
-    namespaces: List[NamespaceCost]
+    namespaces: list[NamespaceCost]
     total_hourly: float
     total_daily: float
     total_monthly: float
@@ -102,9 +102,9 @@ class SavingsSummary(BaseModel):
     """Summary of cost savings."""
     period: TimeRange
     total_savings: float
-    savings_by_type: Dict[OptimizationType, float]
-    savings_by_namespace: Dict[str, float]
-    events: List[SavingsEvent]
+    savings_by_type: dict[OptimizationType, float]
+    savings_by_namespace: dict[str, float]
+    events: list[SavingsEvent]
     potential_additional_savings: float
     roi_percent: float = Field(..., description="Return on investment percentage")
 
@@ -140,7 +140,7 @@ class WorkloadEfficiency(BaseModel):
     """Efficiency metrics for a workload."""
     name: str
     namespace: str
-    resources: List[ResourceEfficiency]
+    resources: list[ResourceEfficiency]
     overall_efficiency: float
     waste_cost_monthly: float
     is_oversized: bool
@@ -152,8 +152,8 @@ class EfficiencySummary(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     overall_efficiency: float
     total_waste_monthly: float
-    workloads: List[WorkloadEfficiency]
-    top_opportunities: List[PotentialSaving]
+    workloads: list[WorkloadEfficiency]
+    top_opportunities: list[PotentialSaving]
 
 
 # =============================================================================
@@ -175,7 +175,7 @@ class CostForecast(BaseModel):
     period: TimeRange
     namespace: Optional[str] = None
     current_daily_cost: float
-    forecast_points: List[CostForecastPoint]
+    forecast_points: list[CostForecastPoint]
     projected_total: float
     trend: str = Field(..., description="increasing/decreasing/stable")
     trend_percent: float
@@ -196,25 +196,25 @@ class CostResponse(BaseModel):
     """Cost API response."""
     success: bool
     data: CostSummary
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class SavingsResponse(BaseModel):
     """Savings API response."""
     success: bool
     data: SavingsSummary
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class EfficiencyResponse(BaseModel):
     """Efficiency API response."""
     success: bool
     data: EfficiencySummary
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class ForecastResponse(BaseModel):
     """Forecast API response."""
     success: bool
     data: CostForecast
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)

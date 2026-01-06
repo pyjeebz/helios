@@ -2,7 +2,6 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 
 @dataclass
@@ -69,11 +68,11 @@ class InferenceConfig:
     metrics: MetricsConfig = field(default_factory=MetricsConfig)
     anomaly: AnomalyConfig = field(default_factory=AnomalyConfig)
     recommendation: RecommendationConfig = field(default_factory=RecommendationConfig)
-    
+
     # Environment
     environment: str = "development"
     debug: bool = False
-    
+
     @classmethod
     def from_env(cls) -> "InferenceConfig":
         """Load configuration from environment variables."""

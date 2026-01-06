@@ -2,10 +2,9 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
-
 
 # =============================================================================
 # Enums
@@ -64,7 +63,7 @@ class ReadyStatus(BaseModel):
     """Readiness check response."""
     ready: bool = Field(..., description="Whether service is ready")
     models_ready: bool = Field(False, description="Whether models are loaded")
-    details: Dict[str, bool] = Field(default_factory=dict)
+    details: dict[str, bool] = Field(default_factory=dict)
 
 
 class ModelInfo(BaseModel):
@@ -73,8 +72,8 @@ class ModelInfo(BaseModel):
     type: ModelType
     version: str
     loaded_at: datetime
-    metrics: List[str] = Field(default_factory=list)
-    performance: Dict[str, float] = Field(default_factory=dict)
+    metrics: list[str] = Field(default_factory=list)
+    performance: dict[str, float] = Field(default_factory=dict)
 
 
 # =============================================================================
@@ -87,7 +86,7 @@ class PredictionRequest(BaseModel):
     periods: int = Field(12, ge=1, le=288, description="Number of periods to forecast (5min each)")
     model: ModelType = Field(ModelType.BASELINE, description="Model to use")
     include_confidence: bool = Field(True, description="Include confidence intervals")
-    
+
     model_config = {"json_schema_extra": {
         "example": {
             "metric": "cpu_utilization",
@@ -112,8 +111,8 @@ class PredictionResponse(BaseModel):
     model: str
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     periods: int
-    predictions: List[PredictionPoint]
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    predictions: list[PredictionPoint]
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 # =============================================================================
@@ -128,12 +127,12 @@ class MetricDataPoint(BaseModel):
 
 class AnomalyRequest(BaseModel):
     """Request for anomaly detection."""
-    metrics: Dict[MetricName, List[MetricDataPoint]] = Field(
-        ..., 
+    metrics: dict[MetricName, list[MetricDataPoint]] = Field(
+        ...,
         description="Dictionary of metric name to list of data points"
     )
     threshold_sigma: float = Field(2.5, ge=1.0, le=5.0, description="Anomaly threshold in std deviations")
-    
+
     model_config = {"json_schema_extra": {
         "example": {
             "metrics": {
@@ -164,8 +163,8 @@ class AnomalyResponse(BaseModel):
     analyzed_at: datetime = Field(default_factory=datetime.utcnow)
     data_points_analyzed: int
     anomalies_detected: int
-    anomalies: List[Anomaly]
-    summary: Dict[str, Any] = Field(default_factory=dict)
+    anomalies: list[Anomaly]
+    summary: dict[str, Any] = Field(default_factory=dict)
 
 
 # =============================================================================
@@ -186,9 +185,9 @@ class RecommendationRequest(BaseModel):
     workload: str = Field(..., description="Workload name (e.g., 'saleor-api')")
     namespace: str = Field("saleor", description="Kubernetes namespace")
     current_state: CurrentState
-    predictions: Optional[List[PredictionPoint]] = Field(None, description="Optional predictions")
+    predictions: Optional[list[PredictionPoint]] = Field(None, description="Optional predictions")
     target_utilization: float = Field(0.7, ge=0.1, le=0.95, description="Target utilization")
-    
+
     model_config = {"json_schema_extra": {
         "example": {
             "workload": "saleor-api",
@@ -222,7 +221,7 @@ class Recommendation(BaseModel):
     namespace: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     current_state: CurrentState
-    actions: List[ScalingAction]
+    actions: list[ScalingAction]
     predicted_utilization: Optional[float] = None
     time_horizon_minutes: int = Field(60, description="How far ahead this recommendation considers")
 
@@ -230,8 +229,8 @@ class Recommendation(BaseModel):
 class RecommendationResponse(BaseModel):
     """Response containing recommendations."""
     generated_at: datetime = Field(default_factory=datetime.utcnow)
-    recommendations: List[Recommendation]
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    recommendations: list[Recommendation]
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 # =============================================================================
@@ -240,7 +239,7 @@ class RecommendationResponse(BaseModel):
 
 class BatchPredictionRequest(BaseModel):
     """Batch prediction request for multiple metrics."""
-    metrics: List[MetricName] = Field(..., min_length=1)
+    metrics: list[MetricName] = Field(..., min_length=1)
     periods: int = Field(12, ge=1, le=288)
     model: ModelType = Field(ModelType.BASELINE)
 
@@ -248,7 +247,7 @@ class BatchPredictionRequest(BaseModel):
 class BatchPredictionResponse(BaseModel):
     """Batch prediction response."""
     generated_at: datetime = Field(default_factory=datetime.utcnow)
-    predictions: Dict[str, PredictionResponse]
+    predictions: dict[str, PredictionResponse]
 
 
 # =============================================================================
@@ -265,6 +264,6 @@ class ErrorDetail(BaseModel):
 class ErrorResponse(BaseModel):
     """Standard error response."""
     error: str
-    details: List[ErrorDetail] = Field(default_factory=list)
+    details: list[ErrorDetail] = Field(default_factory=list)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     request_id: Optional[str] = None

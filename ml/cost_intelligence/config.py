@@ -2,7 +2,6 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Dict
 
 
 @dataclass
@@ -12,10 +11,10 @@ class GKEPricing:
     cpu_per_core_hour: float = 0.0445  # USD per vCPU hour
     memory_per_gb_hour: float = 0.0049  # USD per GB hour
     storage_per_gb_hour: float = 0.0001  # USD per GB hour (ephemeral)
-    
+
     # Spot/Preemptible discounts
     spot_discount: float = 0.60  # 60% discount
-    
+
     # Committed use discounts
     committed_1yr_discount: float = 0.37  # 37% discount
     committed_3yr_discount: float = 0.55  # 55% discount
@@ -48,7 +47,7 @@ class InferenceConfig:
     timeout: int = field(default_factory=lambda: int(os.environ.get("INFERENCE_TIMEOUT", "10")))
 
 
-@dataclass 
+@dataclass
 class GCPConfig:
     """GCP configuration."""
     project_id: str = field(default_factory=lambda: os.environ.get(
