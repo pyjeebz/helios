@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "helios-cli"
+name = "helios-platform"
 version = "0.1.0"
-description = "CLI tool for Helios - Predictive Infrastructure Intelligence Platform"
+description = "Predictive Infrastructure Intelligence Platform - ML-powered forecasting and autoscaling"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.9"

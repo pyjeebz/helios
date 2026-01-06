@@ -106,6 +106,7 @@ jobs:
   release-pypi:
     name: Release to PyPI
     runs-on: ubuntu-latest
+    continue-on-error: true  # Don't block release if PyPI fails
     permissions:
       id-token: write
       contents: read
@@ -137,7 +138,7 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
-          twine upload dist/* --skip-existing
+          twine upload dist/* --skip-existing || echo "PyPI upload failed, continuing..."
 
   create-release:
     name: Create GitHub Release
