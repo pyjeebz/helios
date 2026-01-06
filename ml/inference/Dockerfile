@@ -33,8 +33,9 @@ RUN useradd -m -u 1000 -s /bin/bash helios && \
     chown -R helios:helios /app
 
 # Copy application code
-COPY --chown=helios:helios . ./inference/
-COPY --chown=helios:helios ../models/ ./models/ 2>/dev/null || true
+# Context is ./ml, so paths are relative to ml/
+COPY --chown=helios:helios inference/ ./inference/
+COPY --chown=helios:helios models/ ./models/
 
 # Switch to non-root user
 USER helios
