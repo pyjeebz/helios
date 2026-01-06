@@ -84,6 +84,12 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
+      - name: Download chart dependencies
+        run: |
+          if [ -d "charts/helios" ]; then
+            helm dependency update charts/helios
+          fi
+
       - name: Package Helm chart
         run: |
           if [ -d "charts/helios" ]; then
