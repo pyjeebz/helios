@@ -4,7 +4,7 @@ import click
 from rich.console import Console
 
 from helios_cli import __version__
-from helios_cli.commands import predict, detect, recommend, status, config
+from helios_cli.commands import predict, detect, recommend, status, config, agent
 
 console = Console()
 
@@ -63,6 +63,7 @@ cli.add_command(detect.detect)
 cli.add_command(recommend.recommend)
 cli.add_command(status.status)
 cli.add_command(config.config)
+cli.add_command(agent.agent)
 
 
 def main() -> None:
