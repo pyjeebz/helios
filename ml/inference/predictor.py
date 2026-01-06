@@ -53,7 +53,7 @@ class PredictorService:
             model = model_manager.get_model(ModelType.BASELINE)
 
         # Generate predictions
-        if request.model == ModelType.PROPHET and hasattr(model, 'make_future_dataframe'):
+        if request.model == ModelType.PROPHET and hasattr(model, "make_future_dataframe"):
             predictions = self._predict_prophet(model, request)
         else:
             predictions = self._predict_baseline(model, request)
@@ -67,8 +67,9 @@ class PredictorService:
             metadata={
                 "cache_hit": False,
                 "model_version": model_manager.get_model_info(request.model).version
-                    if model_manager.get_model_info(request.model) else "unknown"
-            }
+                if model_manager.get_model_info(request.model)
+                else "unknown",
+            },
         )
 
         # Cache response
@@ -78,11 +79,7 @@ class PredictorService:
         self._prediction_count += 1
         return response
 
-    def _predict_baseline(
-        self,
-        model: Any,
-        request: PredictionRequest
-    ) -> list[PredictionPoint]:
+    def _predict_baseline(self, model: Any, request: PredictionRequest) -> list[PredictionPoint]:
         """Generate predictions using baseline model."""
         metric_name = request.metric.value
 
@@ -97,7 +94,7 @@ class PredictorService:
             # Assume trained model with predict method
             try:
                 values = model.predict(periods=request.periods)
-                if hasattr(model, 'get_confidence_interval') and request.include_confidence:
+                if hasattr(model, "get_confidence_interval") and request.include_confidence:
                     lower, upper = model.get_confidence_interval(request.periods)
                 else:
                     lower = upper = [None] * request.periods
@@ -113,27 +110,22 @@ class PredictorService:
 
         predictions = []
         for i, value in enumerate(values):
-            predictions.append(PredictionPoint(
-                timestamp=base_time + interval * (i + 1),
-                value=float(value),
-                lower_bound=float(lower[i]) if lower[i] is not None else None,
-                upper_bound=float(upper[i]) if upper[i] is not None else None,
-            ))
+            predictions.append(
+                PredictionPoint(
+                    timestamp=base_time + interval * (i + 1),
+                    value=float(value),
+                    lower_bound=float(lower[i]) if lower[i] is not None else None,
+                    upper_bound=float(upper[i]) if upper[i] is not None else None,
+                )
+            )
 
         return predictions
 
-    def _predict_prophet(
-        self,
-        model: Any,
-        request: PredictionRequest
-    ) -> list[PredictionPoint]:
+    def _predict_prophet(self, model: Any, request: PredictionRequest) -> list[PredictionPoint]:
         """Generate predictions using Prophet model."""
         try:
             # Create future dataframe
-            future = model.make_future_dataframe(
-                periods=request.periods,
-                freq='5min'
-            )
+            future = model.make_future_dataframe(periods=request.periods, freq="5min")
 
             # Generate forecast
             forecast = model.predict(future)
@@ -143,12 +135,18 @@ class PredictorService:
 
             predictions = []
             for _, row in forecast_rows.iterrows():
-                predictions.append(PredictionPoint(
-                    timestamp=row['ds'].to_pydatetime(),
-                    value=float(row['yhat']),
-                    lower_bound=float(row['yhat_lower']) if request.include_confidence else None,
-                    upper_bound=float(row['yhat_upper']) if request.include_confidence else None,
-                ))
+                predictions.append(
+                    PredictionPoint(
+                        timestamp=row["ds"].to_pydatetime(),
+                        value=float(row["yhat"]),
+                        lower_bound=float(row["yhat_lower"])
+                        if request.include_confidence
+                        else None,
+                        upper_bound=float(row["yhat_upper"])
+                        if request.include_confidence
+                        else None,
+                    )
+                )
 
             return predictions
 

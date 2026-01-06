@@ -27,11 +27,7 @@ class EfficiencyAnalyzer:
         self.undersized_threshold = 0.85  # More than 85% usage = undersized
 
     def calculate_resource_efficiency(
-        self,
-        resource: ResourceType,
-        requested: float,
-        used: float,
-        unit_price: float
+        self, resource: ResourceType, requested: float, used: float, unit_price: float
     ) -> ResourceEfficiency:
         """Calculate efficiency for a single resource.
 
@@ -56,7 +52,9 @@ class EfficiencyAnalyzer:
         # Generate recommendation
         recommendation = None
         if efficiency < self.oversized_threshold:
-            recommendation = f"Consider reducing {resource.value} request by {int((1 - efficiency) * 100)}%"
+            recommendation = (
+                f"Consider reducing {resource.value} request by {int((1 - efficiency) * 100)}%"
+            )
         elif efficiency > self.undersized_threshold:
             recommendation = f"Consider increasing {resource.value} request to handle peak load"
 
@@ -66,7 +64,7 @@ class EfficiencyAnalyzer:
             used=used,
             efficiency=efficiency,
             waste_cost_hourly=waste_cost_hourly,
-            recommendation=recommendation
+            recommendation=recommendation,
         )
 
     def analyze_workload(
@@ -76,7 +74,7 @@ class EfficiencyAnalyzer:
         cpu_requested: float,
         cpu_used: float,
         memory_requested: float,
-        memory_used: float
+        memory_used: float,
     ) -> WorkloadEfficiency:
         """Analyze efficiency of a workload.
 
@@ -92,23 +90,17 @@ class EfficiencyAnalyzer:
             WorkloadEfficiency with metrics
         """
         cpu_efficiency = self.calculate_resource_efficiency(
-            ResourceType.CPU,
-            cpu_requested,
-            cpu_used,
-            self.pricing.cpu_per_core_hour
+            ResourceType.CPU, cpu_requested, cpu_used, self.pricing.cpu_per_core_hour
         )
 
         memory_efficiency = self.calculate_resource_efficiency(
-            ResourceType.MEMORY,
-            memory_requested,
-            memory_used,
-            self.pricing.memory_per_gb_hour
+            ResourceType.MEMORY, memory_requested, memory_used, self.pricing.memory_per_gb_hour
         )
 
         resources = [cpu_efficiency, memory_efficiency]
 
         # Overall efficiency is weighted average (CPU weighted more)
-        overall = (cpu_efficiency.efficiency * 0.6 + memory_efficiency.efficiency * 0.4)
+        overall = cpu_efficiency.efficiency * 0.6 + memory_efficiency.efficiency * 0.4
 
         # Total waste
         waste_hourly = sum(r.waste_cost_hourly for r in resources)
@@ -124,13 +116,10 @@ class EfficiencyAnalyzer:
             overall_efficiency=overall,
             waste_cost_monthly=waste_hourly * 24 * 30,
             is_oversized=is_oversized,
-            is_undersized=is_undersized
+            is_undersized=is_undersized,
         )
 
-    def get_efficiency_summary(
-        self,
-        namespace: Optional[str] = None
-    ) -> EfficiencySummary:
+    def get_efficiency_summary(self, namespace: Optional[str] = None) -> EfficiencySummary:
         """Get efficiency summary for all workloads.
 
         In production, this would query Prometheus for actual usage.
@@ -148,57 +137,57 @@ class EfficiencyAnalyzer:
                 "name": "saleor-api",
                 "namespace": "saleor",
                 "cpu_requested": 0.5,  # 2 replicas * 0.25 cores
-                "cpu_used": 0.225,     # 45% of requested
+                "cpu_used": 0.225,  # 45% of requested
                 "memory_requested": 1.024,  # 2 replicas * 512Mi
-                "memory_used": 0.614   # 60% of requested
+                "memory_used": 0.614,  # 60% of requested
             },
             {
                 "name": "saleor-worker",
                 "namespace": "saleor",
                 "cpu_requested": 0.25,
-                "cpu_used": 0.075,     # 30% usage
+                "cpu_used": 0.075,  # 30% usage
                 "memory_requested": 0.512,
-                "memory_used": 0.282   # 55% usage
+                "memory_used": 0.282,  # 55% usage
             },
             {
                 "name": "postgresql",
                 "namespace": "saleor",
                 "cpu_requested": 0.5,
-                "cpu_used": 0.175,     # 35% usage
+                "cpu_used": 0.175,  # 35% usage
                 "memory_requested": 1.0,
-                "memory_used": 0.7     # 70% usage
+                "memory_used": 0.7,  # 70% usage
             },
             {
                 "name": "redis",
                 "namespace": "saleor",
                 "cpu_requested": 0.1,
-                "cpu_used": 0.02,      # 20% usage
+                "cpu_used": 0.02,  # 20% usage
                 "memory_requested": 0.256,
-                "memory_used": 0.128   # 50% usage
+                "memory_used": 0.128,  # 50% usage
             },
             {
                 "name": "helios-inference",
                 "namespace": "helios",
                 "cpu_requested": 0.2,  # 2 replicas * 0.1 cores
-                "cpu_used": 0.05,      # 25% usage
+                "cpu_used": 0.05,  # 25% usage
                 "memory_requested": 0.512,
-                "memory_used": 0.230   # 45% usage
+                "memory_used": 0.230,  # 45% usage
             },
             {
                 "name": "prometheus",
                 "namespace": "monitoring",
                 "cpu_requested": 0.5,
-                "cpu_used": 0.2,       # 40% usage
+                "cpu_used": 0.2,  # 40% usage
                 "memory_requested": 2.0,
-                "memory_used": 1.3     # 65% usage
+                "memory_used": 1.3,  # 65% usage
             },
             {
                 "name": "grafana",
                 "namespace": "monitoring",
                 "cpu_requested": 0.25,
-                "cpu_used": 0.0375,    # 15% usage
+                "cpu_used": 0.0375,  # 15% usage
                 "memory_requested": 0.512,
-                "memory_used": 0.179   # 35% usage
+                "memory_used": 0.179,  # 35% usage
             },
         ]
 
@@ -207,9 +196,7 @@ class EfficiencyAnalyzer:
             workloads_data = [w for w in workloads_data if w["namespace"] == namespace]
 
         # Analyze each workload
-        workloads = [
-            self.analyze_workload(**w) for w in workloads_data
-        ]
+        workloads = [self.analyze_workload(**w) for w in workloads_data]
 
         # Calculate overall metrics
         if workloads:
@@ -227,13 +214,19 @@ class EfficiencyAnalyzer:
             PotentialSaving(
                 workload=w.name,
                 namespace=w.namespace,
-                current_cost_monthly=w.waste_cost_monthly / (1 - w.overall_efficiency) if w.overall_efficiency < 1 else 0,
-                optimized_cost_monthly=w.waste_cost_monthly / (1 - w.overall_efficiency) * w.overall_efficiency if w.overall_efficiency < 1 else 0,
+                current_cost_monthly=w.waste_cost_monthly / (1 - w.overall_efficiency)
+                if w.overall_efficiency < 1
+                else 0,
+                optimized_cost_monthly=w.waste_cost_monthly
+                / (1 - w.overall_efficiency)
+                * w.overall_efficiency
+                if w.overall_efficiency < 1
+                else 0,
                 potential_savings_monthly=w.waste_cost_monthly,
                 optimization_type=OptimizationType.RIGHTSIZING,
-                recommendation=f"Right-size resources to match {w.overall_efficiency*100:.0f}% actual usage",
+                recommendation=f"Right-size resources to match {w.overall_efficiency * 100:.0f}% actual usage",
                 confidence=0.8,
-                implementation_effort="low" if w.waste_cost_monthly < 10 else "medium"
+                implementation_effort="low" if w.waste_cost_monthly < 10 else "medium",
             )
             for w in oversized[:5]
         ]
@@ -242,7 +235,7 @@ class EfficiencyAnalyzer:
             overall_efficiency=overall_efficiency,
             total_waste_monthly=total_waste,
             workloads=workloads,
-            top_opportunities=top_opportunities
+            top_opportunities=top_opportunities,
         )
 
 

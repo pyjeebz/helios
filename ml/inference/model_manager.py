@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 # Optional GCS support
 try:
     from google.cloud import storage
+
     HAS_GCS = True
 except ImportError:
     HAS_GCS = False
@@ -104,12 +105,10 @@ class ModelManager:
                 self._download_from_gcs(gcs_path, model_path)
 
             if model_path.exists():
-                with open(model_path, 'rb') as f:
+                with open(model_path, "rb") as f:
                     model_data = pickle.load(f)
                 self._models["baseline"] = TrainedForecaster(
-                    model=model_data.get('model'),
-                    scaler=model_data.get('scaler'),
-                    lookback=12
+                    model=model_data.get("model"), scaler=model_data.get("scaler"), lookback=12
                 )
                 self._model_info["baseline"] = ModelInfo(
                     name="baseline",
@@ -117,7 +116,7 @@ class ModelManager:
                     version="1.0.0",
                     loaded_at=datetime.utcnow(),
                     metrics=["cpu_utilization", "memory_utilization"],
-                    performance={"source": "gcs", "framework": "xgboost"}
+                    performance={"source": "gcs", "framework": "xgboost"},
                 )
                 logger.info("Loaded trained baseline model from GCS")
                 return True
@@ -130,7 +129,7 @@ class ModelManager:
                     version="1.0.0-inmemory",
                     loaded_at=datetime.utcnow(),
                     metrics=["cpu_utilization", "memory_utilization"],
-                    performance={}
+                    performance={},
                 )
                 logger.info("Created in-memory baseline model")
                 return True
@@ -150,7 +149,7 @@ class ModelManager:
                     version="1.0.0",
                     loaded_at=datetime.utcnow(),
                     metrics=["cpu_utilization", "memory_bytes"],
-                    performance={"mape": 0.211, "coverage": 0.469}
+                    performance={"mape": 0.211, "coverage": 0.469},
                 )
                 logger.info("Loaded Prophet model")
                 return True
@@ -173,11 +172,10 @@ class ModelManager:
                 self._download_from_gcs(gcs_path, model_path)
 
             if model_path.exists():
-                with open(model_path, 'rb') as f:
+                with open(model_path, "rb") as f:
                     model_data = pickle.load(f)
                 self._models["xgboost"] = TrainedAnomalyDetector(
-                    model=model_data.get('model'),
-                    scaler=model_data.get('scaler')
+                    model=model_data.get("model"), scaler=model_data.get("scaler")
                 )
                 self._model_info["xgboost"] = ModelInfo(
                     name="xgboost",
@@ -185,7 +183,7 @@ class ModelManager:
                     version="1.0.0",
                     loaded_at=datetime.utcnow(),
                     metrics=["anomaly_detection"],
-                    performance={"source": "gcs", "framework": "isolation_forest"}
+                    performance={"source": "gcs", "framework": "isolation_forest"},
                 )
                 logger.info("Loaded trained anomaly detector from GCS")
                 return True
@@ -198,7 +196,7 @@ class ModelManager:
                     version="1.0.0-inmemory",
                     loaded_at=datetime.utcnow(),
                     metrics=["anomaly_detection"],
-                    performance={}
+                    performance={},
                 )
                 logger.info("Created in-memory anomaly detector")
                 return True
@@ -236,7 +234,7 @@ class ModelManager:
             "loaded": self.is_loaded,
             "model_count": self.model_count,
             "loaded_at": self._loaded_at.isoformat() if self._loaded_at else None,
-            "models": {name: info.model_dump() for name, info in self._model_info.items()}
+            "models": {name: info.model_dump() for name, info in self._model_info.items()},
         }
 
 
@@ -265,11 +263,11 @@ class InMemoryBaseline:
             return [last_value] * periods
 
         # Calculate moving average
-        ma = np.mean(history[-self.window:])
+        ma = np.mean(history[-self.window :])
 
         # Calculate trend
         if len(history) >= self.window * 2:
-            prev_ma = np.mean(history[-self.window*2:-self.window])
+            prev_ma = np.mean(history[-self.window * 2 : -self.window])
             trend = (ma - prev_ma) / self.window
         else:
             trend = 0.0
@@ -289,7 +287,7 @@ class InMemoryBaseline:
         if len(history) < self.window:
             return ([0.0] * periods, [1.0] * periods)
 
-        std = np.std(history[-self.window:])
+        std = np.std(history[-self.window :])
         z_score = 1.96 if confidence == 0.95 else 2.576  # 95% or 99%
 
         predictions = self.predict(metric, periods)
@@ -325,22 +323,24 @@ class TrainedForecaster:
             return [last_value] * periods
 
         predictions = []
-        current_history = list(history[-self.lookback:])
+        current_history = list(history[-self.lookback :])
 
         for _ in range(periods):
             # Create features
-            lags = np.array(current_history[-self.lookback:])
+            lags = np.array(current_history[-self.lookback :])
             rolling_mean = np.mean(lags)
             rolling_std = np.std(lags)
             rolling_min = np.min(lags)
             rolling_max = np.max(lags)
 
             # Time features (use defaults)
-            features = np.concatenate([
-                lags,
-                [rolling_mean, rolling_std, rolling_min, rolling_max],
-                [0.5, 0.5, 1.0, 0.0]  # Default time features
-            ]).reshape(1, -1)
+            features = np.concatenate(
+                [
+                    lags,
+                    [rolling_mean, rolling_std, rolling_min, rolling_max],
+                    [0.5, 0.5, 1.0, 0.0],  # Default time features
+                ]
+            ).reshape(1, -1)
 
             # Scale and predict
             if self.scaler:
@@ -375,10 +375,7 @@ class TrainedAnomalyDetector:
     def fit(self, metric: str, values: list[float]):
         """Store statistics for the metric."""
         if len(values) >= 2:
-            self._stats[metric] = {
-                "mean": np.mean(values),
-                "std": max(np.std(values), 0.001)
-            }
+            self._stats[metric] = {"mean": np.mean(values), "std": max(np.std(values), 0.001)}
 
     def score(self, metric: str, value: float) -> float:
         """Calculate anomaly score."""
@@ -413,13 +410,15 @@ class TrainedAnomalyDetector:
             for i, value in enumerate(values):
                 score = self.score(metric, value)
                 if score > self.threshold_sigma:
-                    anomalies.append({
-                        "metric": metric,
-                        "index": i,
-                        "value": value,
-                        "score": score,
-                        "expected": self._stats.get(metric, {}).get("mean", 0.5)
-                    })
+                    anomalies.append(
+                        {
+                            "metric": metric,
+                            "index": i,
+                            "value": value,
+                            "score": score,
+                            "expected": self._stats.get(metric, {}).get("mean", 0.5),
+                        }
+                    )
 
         return anomalies
 
@@ -439,7 +438,7 @@ class InMemoryAnomalyDetector:
 
         self._stats[metric] = {
             "mean": np.mean(values),
-            "std": max(np.std(values), 0.001)  # Avoid division by zero
+            "std": max(np.std(values), 0.001),  # Avoid division by zero
         }
 
     def score(self, metric: str, value: float) -> float:
@@ -472,13 +471,15 @@ class InMemoryAnomalyDetector:
             for i, value in enumerate(values):
                 score = self.score(metric, value)
                 if score > self.threshold_sigma:
-                    anomalies.append({
-                        "metric": metric,
-                        "index": i,
-                        "value": value,
-                        "score": score,
-                        "expected": self._stats.get(metric, {}).get("mean", 0.0)
-                    })
+                    anomalies.append(
+                        {
+                            "metric": metric,
+                            "index": i,
+                            "value": value,
+                            "score": score,
+                            "expected": self._stats.get(metric, {}).get("mean", 0.0),
+                        }
+                    )
 
         return anomalies
 

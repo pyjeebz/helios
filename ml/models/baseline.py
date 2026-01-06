@@ -15,6 +15,7 @@ import pandas as pd
 @dataclass
 class BaselinePrediction:
     """Container for baseline model predictions."""
+
     forecast: np.ndarray
     trend: float
     moving_average: float
@@ -75,17 +76,17 @@ class BaselineModel:
             raise ValueError(f"Need at least {self.window} observations, got {len(y)}")
 
         # Calculate moving average (last `window` observations)
-        self.moving_average_ = np.mean(y[-self.window:])
+        self.moving_average_ = np.mean(y[-self.window :])
 
         # Calculate trend (average change per period)
-        trend_data = y[-self.trend_window:] if len(y) >= self.trend_window else y
+        trend_data = y[-self.trend_window :] if len(y) >= self.trend_window else y
         changes = np.diff(trend_data)
         self.trend_ = np.mean(changes) if len(changes) > 0 else 0.0
 
         # Calculate standard deviation for confidence intervals
         # Use residuals from moving average prediction
         ma_values = pd.Series(y).rolling(self.window).mean().dropna()
-        residuals = y[-len(ma_values):] - ma_values.values
+        residuals = y[-len(ma_values) :] - ma_values.values
         self.std_ = np.std(residuals) if len(residuals) > 0 else np.std(y)
 
         self.is_fitted_ = True

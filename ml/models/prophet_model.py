@@ -20,6 +20,7 @@ logging.getLogger("cmdstanpy").setLevel(logging.WARNING)
 @dataclass
 class ProphetPrediction:
     """Container for Prophet predictions."""
+
     forecast: pd.DataFrame
     trend: pd.Series
     seasonality: dict[str, pd.Series]
@@ -100,10 +101,12 @@ class ProphetForecaster:
         Returns:
             DataFrame with 'ds' and 'y' columns
         """
-        prophet_df = pd.DataFrame({
-            "ds": pd.to_datetime(df[timestamp_col]),
-            "y": df[value_col].astype(float),
-        })
+        prophet_df = pd.DataFrame(
+            {
+                "ds": pd.to_datetime(df[timestamp_col]),
+                "y": df[value_col].astype(float),
+            }
+        )
 
         # Remove NaN values
         prophet_df = prophet_df.dropna()
@@ -178,7 +181,9 @@ class ProphetForecaster:
                 seasonality[col] = forecast[col]
 
         # Get changepoints
-        changepoints = list(self.model_.changepoints) if self.model_.changepoints is not None else []
+        changepoints = (
+            list(self.model_.changepoints) if self.model_.changepoints is not None else []
+        )
 
         return ProphetPrediction(
             forecast=forecast,
@@ -228,8 +233,8 @@ class ProphetForecaster:
         forecast = model.predict(future)
 
         # Align predictions with actuals
-        y_true = test_df["y"].values[:len(forecast)]
-        y_pred = forecast["yhat"].values[:len(y_true)]
+        y_true = test_df["y"].values[: len(forecast)]
+        y_pred = forecast["yhat"].values[: len(y_true)]
 
         # Calculate metrics
         mae = np.mean(np.abs(y_true - y_pred))
@@ -238,8 +243,8 @@ class ProphetForecaster:
         mape = np.mean(np.abs((y_true - y_pred) / (y_true + 1e-8))) * 100
 
         # Coverage: % of actuals within prediction intervals
-        lower = forecast["yhat_lower"].values[:len(y_true)]
-        upper = forecast["yhat_upper"].values[:len(y_true)]
+        lower = forecast["yhat_lower"].values[: len(y_true)]
+        upper = forecast["yhat_upper"].values[: len(y_true)]
         coverage = np.mean((y_true >= lower) & (y_true <= upper)) * 100
 
         return {
@@ -300,7 +305,9 @@ class ProphetForecaster:
         return {
             "seasonality_mode": self.seasonality_mode,
             "changepoint_prior_scale": self.changepoint_prior_scale,
-            "n_changepoints": len(self.model_.changepoints) if self.model_.changepoints is not None else 0,
+            "n_changepoints": len(self.model_.changepoints)
+            if self.model_.changepoints is not None
+            else 0,
             "seasonalities": list(self.model_.seasonalities.keys()),
         }
 
@@ -348,16 +355,18 @@ if __name__ == "__main__":
 
     # Generate data with daily seasonality
     hour = dates.hour + dates.minute / 60
-    daily_pattern = 20 * np.sin(2 * np.pi * hour / 24 - np.pi/2)  # Peak at noon
+    daily_pattern = 20 * np.sin(2 * np.pi * hour / 24 - np.pi / 2)  # Peak at noon
     trend = np.linspace(0, 10, n)
     noise = np.random.randn(n) * 3
 
     values = 100 + trend + daily_pattern + noise
 
-    df = pd.DataFrame({
-        "timestamp": dates,
-        "rps": values,
-    })
+    df = pd.DataFrame(
+        {
+            "timestamp": dates,
+            "rps": values,
+        }
+    )
 
     # Train and evaluate
     model, metrics = train_prophet(df, "rps", evaluate=True)

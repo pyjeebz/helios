@@ -75,7 +75,9 @@ class AnomalyDetectorService:
 
             # Detect anomalies for this metric
             metric_anomalies = self._detect_metric_anomalies(
-                metric_name=metric_name.value if isinstance(metric_name, MetricName) else str(metric_name),
+                metric_name=metric_name.value
+                if isinstance(metric_name, MetricName)
+                else str(metric_name),
                 values=values,
                 timestamps=timestamps,
                 detector=detector,
@@ -112,7 +114,7 @@ class AnomalyDetectorService:
             std_val = 0.001  # Avoid division by zero
 
         # If using trained XGBoost detector
-        if hasattr(detector, 'predict') and not isinstance(detector, InMemoryAnomalyDetector):
+        if hasattr(detector, "predict") and not isinstance(detector, InMemoryAnomalyDetector):
             try:
                 # This would use the trained model
                 scores = self._get_xgboost_scores(detector, values)
@@ -127,17 +129,19 @@ class AnomalyDetectorService:
         for i, (value, score, ts) in enumerate(zip(values, scores, timestamps)):
             if score > threshold:
                 severity = self._calculate_severity(score)
-                anomalies.append(Anomaly(
-                    metric=metric_name,
-                    timestamp=ts,
-                    value=value,
-                    expected_value=mean_val,
-                    anomaly_score=float(score),
-                    severity=severity,
-                    description=self._generate_description(
-                        metric_name, value, mean_val, score, severity
-                    ),
-                ))
+                anomalies.append(
+                    Anomaly(
+                        metric=metric_name,
+                        timestamp=ts,
+                        value=value,
+                        expected_value=mean_val,
+                        anomaly_score=float(score),
+                        severity=severity,
+                        description=self._generate_description(
+                            metric_name, value, mean_val, score, severity
+                        ),
+                    )
+                )
 
         return anomalies
 
@@ -146,6 +150,7 @@ class AnomalyDetectorService:
         # This would be implemented based on actual model structure
         # For now, return placeholder
         import numpy as np
+
         predictions = detector.predict(np.array(values).reshape(-1, 1))
         residuals = np.abs(np.array(values) - predictions)
         std = np.std(residuals) if np.std(residuals) > 0 else 1.0
@@ -190,11 +195,7 @@ class AnomalyDetectorService:
             f"(actual: {value:.4f}, expected: {expected:.4f}, score: {score:.2f}σ)"
         )
 
-    def _build_summary(
-        self,
-        anomalies: list[Anomaly],
-        total_points: int
-    ) -> dict[str, Any]:
+    def _build_summary(self, anomalies: list[Anomaly], total_points: int) -> dict[str, Any]:
         """Build anomaly detection summary."""
         if not anomalies:
             return {
@@ -237,8 +238,7 @@ class AnomalyDetectorService:
             "total_detections": self._detection_count,
             "total_anomalies_found": self._anomalies_found,
             "avg_anomalies_per_request": (
-                self._anomalies_found / self._detection_count
-                if self._detection_count > 0 else 0.0
+                self._anomalies_found / self._detection_count if self._detection_count > 0 else 0.0
             ),
         }
 

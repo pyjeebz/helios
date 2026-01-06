@@ -23,10 +23,7 @@ class CostForecaster:
         self._history = self._history[-90:]
 
     def forecast(
-        self,
-        period: TimeRange,
-        current_daily_cost: float,
-        namespace: Optional[str] = None
+        self, period: TimeRange, current_daily_cost: float, namespace: Optional[str] = None
     ) -> CostForecast:
         """Generate cost forecast.
 
@@ -87,13 +84,15 @@ class CostForecaster:
             confidence_factor = 1 + (i / n_points) * 0.3
             margin = predicted * 0.1 * confidence_factor
 
-            forecast_points.append(CostForecastPoint(
-                timestamp=future_time,
-                predicted_cost=predicted,
-                lower_bound=predicted - margin,
-                upper_bound=predicted + margin,
-                confidence=max(0.5, 0.95 - (i / n_points) * 0.3)
-            ))
+            forecast_points.append(
+                CostForecastPoint(
+                    timestamp=future_time,
+                    predicted_cost=predicted,
+                    lower_bound=predicted - margin,
+                    upper_bound=predicted + margin,
+                    confidence=max(0.5, 0.95 - (i / n_points) * 0.3),
+                )
+            )
 
             # Adjust for period type
             if period == TimeRange.QUARTER:
@@ -120,18 +119,17 @@ class CostForecaster:
         return CostForecast(
             period=period,
             namespace=namespace,
-            current_daily_cost=current_daily_cost if period != TimeRange.HOUR else current_daily_cost * 24,
+            current_daily_cost=current_daily_cost
+            if period != TimeRange.HOUR
+            else current_daily_cost * 24,
             forecast_points=forecast_points,
             projected_total=projected_total,
             trend=trend,
-            trend_percent=trend_change
+            trend_percent=trend_change,
         )
 
     def get_budget_status(
-        self,
-        monthly_budget: float,
-        current_spend: float,
-        days_elapsed: int
+        self, monthly_budget: float, current_spend: float, days_elapsed: int
     ) -> dict:
         """Calculate budget status and projection.
 
@@ -148,7 +146,7 @@ class CostForecaster:
                 "on_track": True,
                 "projected_monthly": 0,
                 "budget_remaining": monthly_budget,
-                "burn_rate": 0
+                "burn_rate": 0,
             }
 
         # Calculate burn rate
@@ -166,7 +164,7 @@ class CostForecaster:
         if daily_burn > 0:
             days_to_exhaustion = budget_remaining / daily_burn
         else:
-            days_to_exhaustion = float('inf')
+            days_to_exhaustion = float("inf")
 
         return {
             "on_track": on_track,
@@ -174,7 +172,7 @@ class CostForecaster:
             "budget_remaining": budget_remaining,
             "burn_rate": daily_burn,
             "days_to_exhaustion": days_to_exhaustion,
-            "overage_projected": max(0, projected_monthly - monthly_budget)
+            "overage_projected": max(0, projected_monthly - monthly_budget),
         }
 
 

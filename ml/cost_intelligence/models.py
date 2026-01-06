@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 class ResourceType(str, Enum):
     """Resource types for cost calculation."""
+
     CPU = "cpu"
     MEMORY = "memory"
     STORAGE = "storage"
@@ -17,6 +18,7 @@ class ResourceType(str, Enum):
 
 class TimeRange(str, Enum):
     """Time ranges for queries."""
+
     HOUR = "1h"
     DAY = "24h"
     WEEK = "7d"
@@ -26,6 +28,7 @@ class TimeRange(str, Enum):
 
 class OptimizationType(str, Enum):
     """Types of cost optimizations."""
+
     AUTOSCALING = "autoscaling"
     RIGHTSIZING = "rightsizing"
     SPOT_INSTANCES = "spot_instances"
@@ -36,8 +39,10 @@ class OptimizationType(str, Enum):
 # Cost Models
 # =============================================================================
 
+
 class ResourceCost(BaseModel):
     """Cost for a specific resource type."""
+
     resource: ResourceType
     quantity: float = Field(..., description="Resource quantity (cores, GB, etc.)")
     unit_price: float = Field(..., description="Price per unit per hour")
@@ -48,6 +53,7 @@ class ResourceCost(BaseModel):
 
 class WorkloadCost(BaseModel):
     """Cost breakdown for a workload."""
+
     name: str
     namespace: str
     replicas: int
@@ -60,6 +66,7 @@ class WorkloadCost(BaseModel):
 
 class NamespaceCost(BaseModel):
     """Cost breakdown for a namespace."""
+
     namespace: str
     workloads: list[WorkloadCost]
     total_hourly: float
@@ -70,6 +77,7 @@ class NamespaceCost(BaseModel):
 
 class CostSummary(BaseModel):
     """Overall cost summary."""
+
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     period: TimeRange
     namespaces: list[NamespaceCost]
@@ -83,8 +91,10 @@ class CostSummary(BaseModel):
 # Savings Models
 # =============================================================================
 
+
 class SavingsEvent(BaseModel):
     """A single cost savings event."""
+
     timestamp: datetime
     workload: str
     namespace: str
@@ -100,6 +110,7 @@ class SavingsEvent(BaseModel):
 
 class SavingsSummary(BaseModel):
     """Summary of cost savings."""
+
     period: TimeRange
     total_savings: float
     savings_by_type: dict[OptimizationType, float]
@@ -111,6 +122,7 @@ class SavingsSummary(BaseModel):
 
 class PotentialSaving(BaseModel):
     """A potential savings opportunity."""
+
     workload: str
     namespace: str
     current_cost_monthly: float
@@ -126,8 +138,10 @@ class PotentialSaving(BaseModel):
 # Efficiency Models
 # =============================================================================
 
+
 class ResourceEfficiency(BaseModel):
     """Efficiency metrics for a resource."""
+
     resource: ResourceType
     requested: float
     used: float
@@ -138,6 +152,7 @@ class ResourceEfficiency(BaseModel):
 
 class WorkloadEfficiency(BaseModel):
     """Efficiency metrics for a workload."""
+
     name: str
     namespace: str
     resources: list[ResourceEfficiency]
@@ -149,6 +164,7 @@ class WorkloadEfficiency(BaseModel):
 
 class EfficiencySummary(BaseModel):
     """Overall efficiency summary."""
+
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     overall_efficiency: float
     total_waste_monthly: float
@@ -160,8 +176,10 @@ class EfficiencySummary(BaseModel):
 # Forecast Models
 # =============================================================================
 
+
 class CostForecastPoint(BaseModel):
     """Single forecast data point."""
+
     timestamp: datetime
     predicted_cost: float
     lower_bound: float
@@ -171,6 +189,7 @@ class CostForecastPoint(BaseModel):
 
 class CostForecast(BaseModel):
     """Cost forecast response."""
+
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     period: TimeRange
     namespace: Optional[str] = None
@@ -185,8 +204,10 @@ class CostForecast(BaseModel):
 # API Response Models
 # =============================================================================
 
+
 class HealthResponse(BaseModel):
     """Health check response."""
+
     status: str
     version: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
@@ -194,6 +215,7 @@ class HealthResponse(BaseModel):
 
 class CostResponse(BaseModel):
     """Cost API response."""
+
     success: bool
     data: CostSummary
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -201,6 +223,7 @@ class CostResponse(BaseModel):
 
 class SavingsResponse(BaseModel):
     """Savings API response."""
+
     success: bool
     data: SavingsSummary
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -208,6 +231,7 @@ class SavingsResponse(BaseModel):
 
 class EfficiencyResponse(BaseModel):
     """Efficiency API response."""
+
     success: bool
     data: EfficiencySummary
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -215,6 +239,7 @@ class EfficiencyResponse(BaseModel):
 
 class ForecastResponse(BaseModel):
     """Forecast API response."""
+
     success: bool
     data: CostForecast
     metadata: dict[str, Any] = Field(default_factory=dict)

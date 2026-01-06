@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 @dataclass
 class ServerConfig:
     """HTTP server configuration."""
+
     host: str = "0.0.0.0"
     port: int = 8080
     workers: int = 1
@@ -17,6 +18,7 @@ class ServerConfig:
 @dataclass
 class ModelConfig:
     """Model loading configuration."""
+
     models_dir: str = "/app/models"
     baseline_enabled: bool = True
     prophet_enabled: bool = True
@@ -28,30 +30,29 @@ class ModelConfig:
 @dataclass
 class MetricsConfig:
     """Prometheus metrics configuration."""
+
     enabled: bool = True
     prefix: str = "helios"
-    default_labels: dict = field(default_factory=lambda: {
-        "service": "helios-inference",
-        "version": "0.1.0"
-    })
+    default_labels: dict = field(
+        default_factory=lambda: {"service": "helios-inference", "version": "0.1.0"}
+    )
 
 
 @dataclass
 class AnomalyConfig:
     """Anomaly detection configuration."""
+
     default_threshold_sigma: float = 2.5
     min_data_points: int = 12  # 1 hour of 5-min data
-    severity_thresholds: dict = field(default_factory=lambda: {
-        "low": 2.0,
-        "medium": 2.5,
-        "high": 3.0,
-        "critical": 4.0
-    })
+    severity_thresholds: dict = field(
+        default_factory=lambda: {"low": 2.0, "medium": 2.5, "high": 3.0, "critical": 4.0}
+    )
 
 
 @dataclass
 class RecommendationConfig:
     """Recommendation engine configuration."""
+
     target_utilization: float = 0.7
     scale_up_threshold: float = 0.85
     scale_down_threshold: float = 0.3
@@ -63,6 +64,7 @@ class RecommendationConfig:
 @dataclass
 class InferenceConfig:
     """Main configuration class."""
+
     server: ServerConfig = field(default_factory=ServerConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
     metrics: MetricsConfig = field(default_factory=MetricsConfig)

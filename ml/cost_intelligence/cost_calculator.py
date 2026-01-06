@@ -15,10 +15,7 @@ class CostCalculator:
         self.pricing = config.pricing
 
     def calculate_resource_cost(
-        self,
-        resource: ResourceType,
-        quantity: float,
-        hours: int = 1
+        self, resource: ResourceType, quantity: float, hours: int = 1
     ) -> ResourceCost:
         """Calculate cost for a specific resource.
 
@@ -47,7 +44,7 @@ class CostCalculator:
             unit_price=unit_price,
             hourly_cost=hourly_cost,
             daily_cost=hourly_cost * 24,
-            monthly_cost=hourly_cost * 24 * 30
+            monthly_cost=hourly_cost * 24 * 30,
         )
 
     def calculate_workload_cost(
@@ -59,7 +56,7 @@ class CostCalculator:
         storage_gb: float = 0,
         replicas: int = 1,
         cpu_usage: float = 0.5,
-        memory_usage: float = 0.5
+        memory_usage: float = 0.5,
     ) -> WorkloadCost:
         """Calculate total cost for a workload.
 
@@ -102,13 +99,11 @@ class CostCalculator:
             total_hourly=total_hourly,
             total_daily=total_hourly * 24,
             total_monthly=total_hourly * 24 * 30,
-            efficiency_score=efficiency_score
+            efficiency_score=efficiency_score,
         )
 
     def calculate_namespace_cost(
-        self,
-        namespace: str,
-        workloads: list[WorkloadCost]
+        self, namespace: str, workloads: list[WorkloadCost]
     ) -> NamespaceCost:
         """Calculate total cost for a namespace.
 
@@ -127,7 +122,7 @@ class CostCalculator:
             total_hourly=total_hourly,
             total_daily=total_hourly * 24,
             total_monthly=total_hourly * 24 * 30,
-            workload_count=len(workloads)
+            workload_count=len(workloads),
         )
 
     def get_current_costs(self, period: TimeRange = TimeRange.DAY) -> CostSummary:
@@ -151,7 +146,7 @@ class CostCalculator:
                 memory_gb=0.512,
                 replicas=2,
                 cpu_usage=0.45,
-                memory_usage=0.60
+                memory_usage=0.60,
             ),
             self.calculate_workload_cost(
                 name="saleor-worker",
@@ -160,7 +155,7 @@ class CostCalculator:
                 memory_gb=0.512,
                 replicas=1,
                 cpu_usage=0.30,
-                memory_usage=0.55
+                memory_usage=0.55,
             ),
             self.calculate_workload_cost(
                 name="saleor-dashboard",
@@ -169,7 +164,7 @@ class CostCalculator:
                 memory_gb=0.256,
                 replicas=1,
                 cpu_usage=0.15,
-                memory_usage=0.40
+                memory_usage=0.40,
             ),
             self.calculate_workload_cost(
                 name="postgresql",
@@ -178,7 +173,7 @@ class CostCalculator:
                 memory_gb=1.0,
                 replicas=1,
                 cpu_usage=0.35,
-                memory_usage=0.70
+                memory_usage=0.70,
             ),
             self.calculate_workload_cost(
                 name="redis",
@@ -187,7 +182,7 @@ class CostCalculator:
                 memory_gb=0.256,
                 replicas=1,
                 cpu_usage=0.20,
-                memory_usage=0.50
+                memory_usage=0.50,
             ),
         ]
 
@@ -199,7 +194,7 @@ class CostCalculator:
                 memory_gb=0.256,
                 replicas=2,
                 cpu_usage=0.25,
-                memory_usage=0.45
+                memory_usage=0.45,
             ),
         ]
 
@@ -211,7 +206,7 @@ class CostCalculator:
                 memory_gb=2.0,
                 replicas=1,
                 cpu_usage=0.40,
-                memory_usage=0.65
+                memory_usage=0.65,
             ),
             self.calculate_workload_cost(
                 name="grafana",
@@ -220,7 +215,7 @@ class CostCalculator:
                 memory_gb=0.512,
                 replicas=1,
                 cpu_usage=0.15,
-                memory_usage=0.35
+                memory_usage=0.35,
             ),
         ]
 
@@ -237,7 +232,7 @@ class CostCalculator:
             namespaces=namespaces,
             total_hourly=total_hourly,
             total_daily=total_hourly * 24,
-            total_monthly=total_hourly * 24 * 30
+            total_monthly=total_hourly * 24 * 30,
         )
 
     def parse_resource_string(self, resource_str: str) -> float:
@@ -255,17 +250,17 @@ class CostCalculator:
         resource_str = str(resource_str).strip()
 
         # CPU: millicores to cores
-        if resource_str.endswith('m'):
+        if resource_str.endswith("m"):
             return float(resource_str[:-1]) / 1000
 
         # Memory: various units to GB
-        if resource_str.endswith('Ki'):
+        if resource_str.endswith("Ki"):
             return float(resource_str[:-2]) / (1024 * 1024)
-        if resource_str.endswith('Mi'):
+        if resource_str.endswith("Mi"):
             return float(resource_str[:-2]) / 1024
-        if resource_str.endswith('Gi'):
+        if resource_str.endswith("Gi"):
             return float(resource_str[:-2])
-        if resource_str.endswith('Ti'):
+        if resource_str.endswith("Ti"):
             return float(resource_str[:-2]) * 1024
 
         # Plain number (assume cores for CPU, bytes for memory)

@@ -24,7 +24,7 @@ class SavingsAnalyzer:
         before_replicas: int,
         after_replicas: int,
         cpu_per_replica: float,
-        memory_per_replica: float
+        memory_per_replica: float,
     ) -> SavingsEvent:
         """Record a scaling event and calculate savings.
 
@@ -41,8 +41,8 @@ class SavingsAnalyzer:
         """
         # Calculate hourly cost per replica
         hourly_per_replica = (
-            cpu_per_replica * self.pricing.cpu_per_core_hour +
-            memory_per_replica * self.pricing.memory_per_gb_hour
+            cpu_per_replica * self.pricing.cpu_per_core_hour
+            + memory_per_replica * self.pricing.memory_per_gb_hour
         )
 
         before_cost = before_replicas * hourly_per_replica
@@ -74,16 +74,14 @@ class SavingsAnalyzer:
             before_replicas=before_replicas,
             after_replicas=after_replicas,
             before_cost=before_cost,
-            after_cost=after_cost
+            after_cost=after_cost,
         )
 
         self._savings_history.append(event)
         return event
 
     def get_savings_summary(
-        self,
-        period: TimeRange = TimeRange.MONTH,
-        namespace: Optional[str] = None
+        self, period: TimeRange = TimeRange.MONTH, namespace: Optional[str] = None
     ) -> SavingsSummary:
         """Get savings summary for a period.
 
@@ -109,9 +107,9 @@ class SavingsAnalyzer:
 
         # Filter events
         events = [
-            e for e in self._savings_history
-            if e.timestamp >= cutoff and
-               (namespace is None or e.namespace == namespace)
+            e
+            for e in self._savings_history
+            if e.timestamp >= cutoff and (namespace is None or e.namespace == namespace)
         ]
 
         # Calculate totals
@@ -133,8 +131,9 @@ class SavingsAnalyzer:
 
         # Add simulated historical savings if no real data
         if not events:
-            events, total_savings, savings_by_type, savings_by_namespace = \
+            events, total_savings, savings_by_type, savings_by_namespace = (
                 self._generate_simulated_savings(period)
+            )
 
         # Calculate potential additional savings
         potential = self._calculate_potential_savings()
@@ -150,7 +149,7 @@ class SavingsAnalyzer:
             savings_by_namespace=savings_by_namespace,
             events=events[-20:],  # Last 20 events
             potential_additional_savings=potential,
-            roi_percent=roi
+            roi_percent=roi,
         )
 
     def _generate_simulated_savings(self, period: TimeRange):
@@ -169,7 +168,7 @@ class SavingsAnalyzer:
                 before_replicas=3,
                 after_replicas=2,
                 before_cost=0.06,
-                after_cost=0.04
+                after_cost=0.04,
             ),
             SavingsEvent(
                 timestamp=now - timedelta(hours=8),
@@ -182,7 +181,7 @@ class SavingsAnalyzer:
                 before_replicas=2,
                 after_replicas=1,
                 before_cost=0.045,
-                after_cost=0.03
+                after_cost=0.03,
             ),
             SavingsEvent(
                 timestamp=now - timedelta(days=1),
@@ -195,21 +194,15 @@ class SavingsAnalyzer:
                 before_replicas=2,
                 after_replicas=2,
                 before_cost=0.03,
-                after_cost=0.02
+                after_cost=0.02,
             ),
         ]
 
         total_savings = sum(e.savings_monthly for e in events)
 
-        savings_by_type = {
-            OptimizationType.AUTOSCALING: 25.20,
-            OptimizationType.RIGHTSIZING: 7.20
-        }
+        savings_by_type = {OptimizationType.AUTOSCALING: 25.20, OptimizationType.RIGHTSIZING: 7.20}
 
-        savings_by_namespace = {
-            "saleor": 25.20,
-            "helios": 7.20
-        }
+        savings_by_namespace = {"saleor": 25.20, "helios": 7.20}
 
         return events, total_savings, savings_by_type, savings_by_namespace
 
@@ -234,7 +227,7 @@ class SavingsAnalyzer:
                 optimization_type=OptimizationType.AUTOSCALING,
                 recommendation="Enable predictive autoscaling to reduce replicas during predicted low-traffic periods",
                 confidence=0.85,
-                implementation_effort="low"
+                implementation_effort="low",
             ),
             PotentialSaving(
                 workload="postgresql",
@@ -245,7 +238,7 @@ class SavingsAnalyzer:
                 optimization_type=OptimizationType.RIGHTSIZING,
                 recommendation="Reduce memory request from 1Gi to 768Mi based on actual usage patterns",
                 confidence=0.75,
-                implementation_effort="medium"
+                implementation_effort="medium",
             ),
             PotentialSaving(
                 workload="prometheus",
@@ -256,7 +249,7 @@ class SavingsAnalyzer:
                 optimization_type=OptimizationType.RIGHTSIZING,
                 recommendation="Optimize retention period and use remote storage for older metrics",
                 confidence=0.70,
-                implementation_effort="high"
+                implementation_effort="high",
             ),
         ]
 

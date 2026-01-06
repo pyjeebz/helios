@@ -18,6 +18,7 @@ from sklearn.preprocessing import StandardScaler
 @dataclass
 class AnomalyResult:
     """Container for anomaly detection results."""
+
     scores: np.ndarray
     predictions: np.ndarray
     threshold: float
@@ -112,7 +113,8 @@ class XGBoostAnomalyDetector:
         # Train model
         self.model_ = self._create_model()
         self.model_.fit(
-            X_train, y_train,
+            X_train,
+            y_train,
             eval_set=[(X_val, y_val)],
             verbose=False,
         )
@@ -161,10 +163,7 @@ class XGBoostAnomalyDetector:
         anomaly_indices = np.where(predictions == 1)[0]
 
         # Get feature importance
-        importance = dict(zip(
-            self.feature_names_,
-            self.model_.feature_importances_
-        ))
+        importance = dict(zip(self.feature_names_, self.model_.feature_importances_))
         # Sort by importance
         importance = dict(sorted(importance.items(), key=lambda x: x[1], reverse=True))
 
@@ -237,11 +236,13 @@ class XGBoostAnomalyDetector:
             recall = true_positives / (true_positives + false_negatives + 1e-8)
             f1 = 2 * precision * recall / (precision + recall + 1e-8)
 
-            metrics.update({
-                "precision": precision,
-                "recall": recall,
-                "f1_score": f1,
-            })
+            metrics.update(
+                {
+                    "precision": precision,
+                    "recall": recall,
+                    "f1_score": f1,
+                }
+            )
 
         return metrics
 
@@ -250,15 +251,8 @@ class XGBoostAnomalyDetector:
         if not self.is_fitted_:
             raise ValueError("Model must be fitted first")
 
-        importance = dict(zip(
-            self.feature_names_,
-            self.model_.feature_importances_
-        ))
-        sorted_importance = dict(sorted(
-            importance.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )[:n])
+        importance = dict(zip(self.feature_names_, self.model_.feature_importances_))
+        sorted_importance = dict(sorted(importance.items(), key=lambda x: x[1], reverse=True)[:n])
 
         return sorted_importance
 
@@ -350,20 +344,22 @@ if __name__ == "__main__":
     n = 500
 
     # Generate normal data
-    X = pd.DataFrame({
-        "cpu_usage": np.random.randn(n) * 10 + 50,
-        "memory_usage": np.random.randn(n) * 15 + 70,
-        "request_rate": np.random.randn(n) * 20 + 100,
-        "latency_lag_1": np.random.randn(n) * 5 + 50,
-        "latency_lag_3": np.random.randn(n) * 5 + 50,
-    })
+    X = pd.DataFrame(
+        {
+            "cpu_usage": np.random.randn(n) * 10 + 50,
+            "memory_usage": np.random.randn(n) * 15 + 70,
+            "request_rate": np.random.randn(n) * 20 + 100,
+            "latency_lag_1": np.random.randn(n) * 5 + 50,
+            "latency_lag_3": np.random.randn(n) * 5 + 50,
+        }
+    )
 
     # Target: latency (correlated with other features + noise)
     y = pd.Series(
-        0.3 * X["cpu_usage"] +
-        0.2 * X["memory_usage"] +
-        0.1 * X["request_rate"] +
-        np.random.randn(n) * 5
+        0.3 * X["cpu_usage"]
+        + 0.2 * X["memory_usage"]
+        + 0.1 * X["request_rate"]
+        + np.random.randn(n) * 5
     )
 
     # Inject some anomalies

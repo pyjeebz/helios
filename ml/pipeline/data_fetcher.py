@@ -66,10 +66,10 @@ class CloudMonitoringFetcher:
         """Convert protobuf timestamp or DatetimeWithNanoseconds to datetime."""
         try:
             # If it has a replace method, it's datetime-like
-            if hasattr(ts, 'replace'):
+            if hasattr(ts, "replace"):
                 return ts.replace(tzinfo=None)
             # If it has seconds attribute, convert from epoch
-            elif hasattr(ts, 'seconds'):
+            elif hasattr(ts, "seconds"):
                 return datetime.utcfromtimestamp(ts.seconds)
             else:
                 return ts
@@ -146,7 +146,7 @@ class CloudMonitoringFetcher:
                         "timestamp": timestamp,
                         "value": self._extract_value(point.value),
                         "metric_type": metric_type,
-                        **labels
+                        **labels,
                     }
                     records.append(record)
         except Exception as e:
@@ -270,11 +270,7 @@ class CloudMonitoringFetcher:
 
         return result.sort_values("timestamp").reset_index(drop=True)
 
-    def fetch_all_metrics(
-        self,
-        hours: int = 6,
-        namespace: str = "saleor"
-    ) -> pd.DataFrame:
+    def fetch_all_metrics(self, hours: int = 6, namespace: str = "saleor") -> pd.DataFrame:
         """
         Fetch all relevant metrics and combine into a single DataFrame.
 

@@ -20,14 +20,16 @@ from .config import config
 # =============================================================================
 
 SERVICE_INFO = Info(
-    f'{config.metrics.prefix}_service',
-    'Service information',
+    f"{config.metrics.prefix}_service",
+    "Service information",
     registry=REGISTRY,
 )
-SERVICE_INFO.info({
-    'version': '0.1.0',
-    'service': 'helios-inference',
-})
+SERVICE_INFO.info(
+    {
+        "version": "0.1.0",
+        "service": "helios-inference",
+    }
+)
 
 
 # =============================================================================
@@ -35,24 +37,24 @@ SERVICE_INFO.info({
 # =============================================================================
 
 REQUEST_COUNT = Counter(
-    f'{config.metrics.prefix}_requests_total',
-    'Total number of requests',
-    ['endpoint', 'method', 'status'],
+    f"{config.metrics.prefix}_requests_total",
+    "Total number of requests",
+    ["endpoint", "method", "status"],
     registry=REGISTRY,
 )
 
 REQUEST_LATENCY = Histogram(
-    f'{config.metrics.prefix}_request_latency_seconds',
-    'Request latency in seconds',
-    ['endpoint', 'method'],
+    f"{config.metrics.prefix}_request_latency_seconds",
+    "Request latency in seconds",
+    ["endpoint", "method"],
     buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
     registry=REGISTRY,
 )
 
 REQUEST_IN_PROGRESS = Gauge(
-    f'{config.metrics.prefix}_requests_in_progress',
-    'Number of requests currently being processed',
-    ['endpoint'],
+    f"{config.metrics.prefix}_requests_in_progress",
+    "Number of requests currently being processed",
+    ["endpoint"],
     registry=REGISTRY,
 )
 
@@ -62,29 +64,29 @@ REQUEST_IN_PROGRESS = Gauge(
 # =============================================================================
 
 PREDICTIONS_TOTAL = Counter(
-    f'{config.metrics.prefix}_predictions_total',
-    'Total number of predictions made',
-    ['model', 'metric'],
+    f"{config.metrics.prefix}_predictions_total",
+    "Total number of predictions made",
+    ["model", "metric"],
     registry=REGISTRY,
 )
 
 PREDICTION_LATENCY = Histogram(
-    f'{config.metrics.prefix}_prediction_latency_seconds',
-    'Prediction generation latency in seconds',
-    ['model'],
+    f"{config.metrics.prefix}_prediction_latency_seconds",
+    "Prediction generation latency in seconds",
+    ["model"],
     buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5],
     registry=REGISTRY,
 )
 
 PREDICTION_CACHE_HITS = Counter(
-    f'{config.metrics.prefix}_prediction_cache_hits_total',
-    'Number of prediction cache hits',
+    f"{config.metrics.prefix}_prediction_cache_hits_total",
+    "Number of prediction cache hits",
     registry=REGISTRY,
 )
 
 PREDICTION_CACHE_MISSES = Counter(
-    f'{config.metrics.prefix}_prediction_cache_misses_total',
-    'Number of prediction cache misses',
+    f"{config.metrics.prefix}_prediction_cache_misses_total",
+    "Number of prediction cache misses",
     registry=REGISTRY,
 )
 
@@ -94,22 +96,22 @@ PREDICTION_CACHE_MISSES = Counter(
 # =============================================================================
 
 ANOMALIES_DETECTED = Counter(
-    f'{config.metrics.prefix}_anomalies_detected_total',
-    'Total number of anomalies detected',
-    ['metric', 'severity'],
+    f"{config.metrics.prefix}_anomalies_detected_total",
+    "Total number of anomalies detected",
+    ["metric", "severity"],
     registry=REGISTRY,
 )
 
 ANOMALY_DETECTION_LATENCY = Histogram(
-    f'{config.metrics.prefix}_anomaly_detection_latency_seconds',
-    'Anomaly detection latency in seconds',
+    f"{config.metrics.prefix}_anomaly_detection_latency_seconds",
+    "Anomaly detection latency in seconds",
     buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0],
     registry=REGISTRY,
 )
 
 DATA_POINTS_ANALYZED = Counter(
-    f'{config.metrics.prefix}_data_points_analyzed_total',
-    'Total number of data points analyzed for anomalies',
+    f"{config.metrics.prefix}_data_points_analyzed_total",
+    "Total number of data points analyzed for anomalies",
     registry=REGISTRY,
 )
 
@@ -119,23 +121,23 @@ DATA_POINTS_ANALYZED = Counter(
 # =============================================================================
 
 RECOMMENDATIONS_TOTAL = Counter(
-    f'{config.metrics.prefix}_recommendations_total',
-    'Total number of recommendations generated',
-    ['workload', 'action'],
+    f"{config.metrics.prefix}_recommendations_total",
+    "Total number of recommendations generated",
+    ["workload", "action"],
     registry=REGISTRY,
 )
 
 RECOMMENDATION_LATENCY = Histogram(
-    f'{config.metrics.prefix}_recommendation_latency_seconds',
-    'Recommendation generation latency in seconds',
+    f"{config.metrics.prefix}_recommendation_latency_seconds",
+    "Recommendation generation latency in seconds",
     buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5],
     registry=REGISTRY,
 )
 
 RECOMMENDED_REPLICAS = Gauge(
-    f'{config.metrics.prefix}_recommended_replicas',
-    'Currently recommended replica count',
-    ['workload', 'namespace'],
+    f"{config.metrics.prefix}_recommended_replicas",
+    "Currently recommended replica count",
+    ["workload", "namespace"],
     registry=REGISTRY,
 )
 
@@ -145,15 +147,15 @@ RECOMMENDED_REPLICAS = Gauge(
 # =============================================================================
 
 MODELS_LOADED = Gauge(
-    f'{config.metrics.prefix}_models_loaded',
-    'Number of models currently loaded',
+    f"{config.metrics.prefix}_models_loaded",
+    "Number of models currently loaded",
     registry=REGISTRY,
 )
 
 MODEL_LOAD_LATENCY = Histogram(
-    f'{config.metrics.prefix}_model_load_latency_seconds',
-    'Model loading latency in seconds',
-    ['model'],
+    f"{config.metrics.prefix}_model_load_latency_seconds",
+    "Model loading latency in seconds",
+    ["model"],
     buckets=[0.1, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0],
     registry=REGISTRY,
 )
@@ -164,20 +166,20 @@ MODEL_LOAD_LATENCY = Histogram(
 # =============================================================================
 
 SERVICE_UP = Gauge(
-    f'{config.metrics.prefix}_up',
-    'Whether the service is up (1) or down (0)',
+    f"{config.metrics.prefix}_up",
+    "Whether the service is up (1) or down (0)",
     registry=REGISTRY,
 )
 
 SERVICE_READY = Gauge(
-    f'{config.metrics.prefix}_ready',
-    'Whether the service is ready to serve traffic',
+    f"{config.metrics.prefix}_ready",
+    "Whether the service is ready to serve traffic",
     registry=REGISTRY,
 )
 
 UPTIME_SECONDS = Gauge(
-    f'{config.metrics.prefix}_uptime_seconds',
-    'Service uptime in seconds',
+    f"{config.metrics.prefix}_uptime_seconds",
+    "Service uptime in seconds",
     registry=REGISTRY,
 )
 
@@ -229,6 +231,7 @@ def get_content_type() -> str:
 # =============================================================================
 # Metric Recording Helpers
 # =============================================================================
+
 
 def record_request(endpoint: str, method: str, status: int, latency: float):
     """Record an HTTP request."""

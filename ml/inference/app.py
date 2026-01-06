@@ -55,7 +55,7 @@ from .recommender import recommender_service
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, config.server.log_level.upper()),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # Lifespan Management
 # =============================================================================
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -123,6 +124,7 @@ app.add_middleware(
 # Middleware
 # =============================================================================
 
+
 @app.middleware("http")
 async def metrics_middleware(request: Request, call_next):
     """Record request metrics."""
@@ -146,6 +148,7 @@ async def metrics_middleware(request: Request, call_next):
 # =============================================================================
 # Health Endpoints
 # =============================================================================
+
 
 @app.get(
     "/health",
@@ -180,7 +183,7 @@ async def readiness_check() -> ReadyStatus:
             "baseline": model_manager.get_model_info("baseline") is not None,
             "prophet": model_manager.get_model_info("prophet") is not None,
             "xgboost": model_manager.get_model_info("xgboost") is not None,
-        }
+        },
     )
 
 
@@ -199,6 +202,7 @@ async def list_models() -> list[ModelInfo]:
 # Prediction Endpoints
 # =============================================================================
 
+
 @app.post(
     "/predict",
     response_model=PredictionResponse,
@@ -216,10 +220,7 @@ async def predict(request: PredictionRequest) -> PredictionResponse:
     the specified model (baseline, prophet, or xgboost).
     """
     if not model_manager.is_loaded:
-        raise HTTPException(
-            status_code=503,
-            detail="Models not loaded, service not ready"
-        )
+        raise HTTPException(status_code=503, detail="Models not loaded, service not ready")
 
     start = time.time()
 
@@ -251,10 +252,7 @@ async def predict(request: PredictionRequest) -> PredictionResponse:
 async def batch_predict(request: BatchPredictionRequest) -> BatchPredictionResponse:
     """Generate predictions for multiple metrics at once."""
     if not model_manager.is_loaded:
-        raise HTTPException(
-            status_code=503,
-            detail="Models not loaded, service not ready"
-        )
+        raise HTTPException(status_code=503, detail="Models not loaded, service not ready")
 
     predictions = {}
 
@@ -272,6 +270,7 @@ async def batch_predict(request: BatchPredictionRequest) -> BatchPredictionRespo
 # =============================================================================
 # Anomaly Detection Endpoints
 # =============================================================================
+
 
 @app.post(
     "/detect",
@@ -311,6 +310,7 @@ async def detect_anomalies(request: AnomalyRequest) -> AnomalyResponse:
 # Recommendation Endpoints
 # =============================================================================
 
+
 @app.post(
     "/recommend",
     response_model=RecommendationResponse,
@@ -320,9 +320,7 @@ async def detect_anomalies(request: AnomalyRequest) -> AnomalyResponse:
         400: {"model": ErrorResponse, "description": "Invalid request"},
     },
 )
-async def get_recommendations(
-    request: RecommendationRequest
-) -> RecommendationResponse:
+async def get_recommendations(request: RecommendationRequest) -> RecommendationResponse:
     """Generate scaling recommendations for a workload.
 
     Analyzes current state and predictions to provide
@@ -361,6 +359,7 @@ async def get_recommendations(
 # Metrics Endpoint
 # =============================================================================
 
+
 @app.get(
     "/metrics",
     tags=["Observability"],
@@ -378,6 +377,7 @@ async def prometheus_metrics():
 # =============================================================================
 # Info Endpoints
 # =============================================================================
+
 
 @app.get(
     "/",
@@ -415,6 +415,7 @@ async def get_stats() -> dict[str, Any]:
 # Error Handlers
 # =============================================================================
 
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Handle HTTP exceptions."""
@@ -443,6 +444,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 # =============================================================================
 # Main Entry Point
 # =============================================================================
+
 
 def main():
     """Run the service."""

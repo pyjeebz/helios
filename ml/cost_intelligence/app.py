@@ -26,46 +26,26 @@ from .savings_analyzer import savings_analyzer
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, config.server.log_level.upper()),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
 # Prometheus metrics
 REQUEST_COUNT = Counter(
-    "helios_cost_requests_total",
-    "Total cost API requests",
-    ["endpoint", "method", "status"]
+    "helios_cost_requests_total", "Total cost API requests", ["endpoint", "method", "status"]
 )
 
 COST_GAUGE = Gauge(
-    "helios_cost_current",
-    "Current costs by namespace and resource",
-    ["namespace", "resource"]
+    "helios_cost_current", "Current costs by namespace and resource", ["namespace", "resource"]
 )
 
-SAVINGS_GAUGE = Gauge(
-    "helios_savings_total",
-    "Total savings by type",
-    ["type"]
-)
+SAVINGS_GAUGE = Gauge("helios_savings_total", "Total savings by type", ["type"])
 
-EFFICIENCY_GAUGE = Gauge(
-    "helios_efficiency",
-    "Resource efficiency by namespace",
-    ["namespace"]
-)
+EFFICIENCY_GAUGE = Gauge("helios_efficiency", "Resource efficiency by namespace", ["namespace"])
 
-FORECAST_GAUGE = Gauge(
-    "helios_cost_forecast",
-    "Cost forecast by period",
-    ["period"]
-)
+FORECAST_GAUGE = Gauge("helios_cost_forecast", "Cost forecast by period", ["period"])
 
-REQUEST_LATENCY = Histogram(
-    "helios_cost_request_latency_seconds",
-    "Request latency",
-    ["endpoint"]
-)
+REQUEST_LATENCY = Histogram("helios_cost_request_latency_seconds", "Request latency", ["endpoint"])
 
 
 def update_metrics():
@@ -76,10 +56,9 @@ def update_metrics():
         for ns in costs.namespaces:
             for workload in ns.workloads:
                 for resource in workload.resources:
-                    COST_GAUGE.labels(
-                        namespace=ns.namespace,
-                        resource=resource.resource.value
-                    ).set(resource.hourly_cost)
+                    COST_GAUGE.labels(namespace=ns.namespace, resource=resource.resource.value).set(
+                        resource.hourly_cost
+                    )
 
         # Update savings metrics
         savings = savings_analyzer.get_savings_summary()
@@ -89,9 +68,7 @@ def update_metrics():
         # Update efficiency metrics
         efficiency = efficiency_analyzer.get_efficiency_summary()
         for workload in efficiency.workloads:
-            EFFICIENCY_GAUGE.labels(namespace=workload.namespace).set(
-                workload.overall_efficiency
-            )
+            EFFICIENCY_GAUGE.labels(namespace=workload.namespace).set(workload.overall_efficiency)
 
         # Update forecast metrics
         forecast = cost_forecaster.forecast(TimeRange.MONTH, costs.total_daily)
@@ -115,7 +92,7 @@ app = FastAPI(
     title="Helios Cost Intelligence",
     description="Cost analysis and optimization API for Kubernetes infrastructure",
     version="0.1.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add CORS middleware
@@ -132,14 +109,12 @@ app.add_middleware(
 # Health Endpoints
 # =============================================================================
 
+
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
 async def health_check():
     """Health check endpoint."""
     REQUEST_COUNT.labels(endpoint="/health", method="GET", status="200").inc()
-    return HealthResponse(
-        status="healthy",
-        version="0.1.0"
-    )
+    return HealthResponse(status="healthy", version="0.1.0")
 
 
 @app.get("/ready", tags=["Health"])
@@ -153,10 +128,11 @@ async def readiness_check():
 # Cost Endpoints
 # =============================================================================
 
+
 @app.get("/costs", response_model=CostResponse, tags=["Costs"])
 async def get_costs(
     period: TimeRange = Query(TimeRange.DAY, description="Time period"),
-    namespace: Optional[str] = Query(None, description="Filter by namespace")
+    namespace: Optional[str] = Query(None, description="Filter by namespace"),
 ):
     """Get current cost breakdown."""
     with REQUEST_LATENCY.labels(endpoint="/costs").time():
@@ -165,19 +141,13 @@ async def get_costs(
 
             # Filter by namespace if specified
             if namespace:
-                costs.namespaces = [
-                    ns for ns in costs.namespaces if ns.namespace == namespace
-                ]
+                costs.namespaces = [ns for ns in costs.namespaces if ns.namespace == namespace]
                 costs.total_hourly = sum(ns.total_hourly for ns in costs.namespaces)
                 costs.total_daily = costs.total_hourly * 24
                 costs.total_monthly = costs.total_daily * 30
 
             REQUEST_COUNT.labels(endpoint="/costs", method="GET", status="200").inc()
-            return CostResponse(
-                success=True,
-                data=costs,
-                metadata={"namespace_filter": namespace}
-            )
+            return CostResponse(success=True, data=costs, metadata={"namespace_filter": namespace})
         except Exception as e:
             REQUEST_COUNT.labels(endpoint="/costs", method="GET", status="500").inc()
             raise HTTPException(status_code=500, detail=str(e))
@@ -194,7 +164,8 @@ async def get_cost_summary():
         "currency": "USD",
         "namespace_count": len(costs.namespaces),
         "top_namespace": max(costs.namespaces, key=lambda x: x.total_monthly).namespace
-        if costs.namespaces else None
+        if costs.namespaces
+        else None,
     }
 
 
@@ -202,10 +173,11 @@ async def get_cost_summary():
 # Savings Endpoints
 # =============================================================================
 
+
 @app.get("/savings", response_model=SavingsResponse, tags=["Savings"])
 async def get_savings(
     period: TimeRange = Query(TimeRange.MONTH, description="Time period"),
-    namespace: Optional[str] = Query(None, description="Filter by namespace")
+    namespace: Optional[str] = Query(None, description="Filter by namespace"),
 ):
     """Get savings summary from optimizations."""
     with REQUEST_LATENCY.labels(endpoint="/savings").time():
@@ -214,9 +186,7 @@ async def get_savings(
 
             REQUEST_COUNT.labels(endpoint="/savings", method="GET", status="200").inc()
             return SavingsResponse(
-                success=True,
-                data=savings,
-                metadata={"namespace_filter": namespace}
+                success=True, data=savings, metadata={"namespace_filter": namespace}
             )
         except Exception as e:
             REQUEST_COUNT.labels(endpoint="/savings", method="GET", status="500").inc()
@@ -232,7 +202,7 @@ async def get_potential_savings():
     return {
         "total_potential_monthly": round(total_potential, 2),
         "opportunities_count": len(opportunities),
-        "opportunities": [o.model_dump() for o in opportunities]
+        "opportunities": [o.model_dump() for o in opportunities],
     }
 
 
@@ -240,10 +210,9 @@ async def get_potential_savings():
 # Efficiency Endpoints
 # =============================================================================
 
+
 @app.get("/efficiency", response_model=EfficiencyResponse, tags=["Efficiency"])
-async def get_efficiency(
-    namespace: Optional[str] = Query(None, description="Filter by namespace")
-):
+async def get_efficiency(namespace: Optional[str] = Query(None, description="Filter by namespace")):
     """Get resource efficiency analysis."""
     with REQUEST_LATENCY.labels(endpoint="/efficiency").time():
         try:
@@ -251,9 +220,7 @@ async def get_efficiency(
 
             REQUEST_COUNT.labels(endpoint="/efficiency", method="GET", status="200").inc()
             return EfficiencyResponse(
-                success=True,
-                data=efficiency,
-                metadata={"namespace_filter": namespace}
+                success=True, data=efficiency, metadata={"namespace_filter": namespace}
             )
         except Exception as e:
             REQUEST_COUNT.labels(endpoint="/efficiency", method="GET", status="500").inc()
@@ -278,7 +245,8 @@ async def get_efficiency_summary():
         "undersized_count": undersized,
         "optimal_count": optimal,
         "top_opportunity": efficiency.top_opportunities[0].workload
-            if efficiency.top_opportunities else None
+        if efficiency.top_opportunities
+        else None,
     }
 
 
@@ -286,10 +254,11 @@ async def get_efficiency_summary():
 # Forecast Endpoints
 # =============================================================================
 
+
 @app.get("/forecast", response_model=ForecastResponse, tags=["Forecast"])
 async def get_forecast(
     period: TimeRange = Query(TimeRange.MONTH, description="Forecast period"),
-    namespace: Optional[str] = Query(None, description="Filter by namespace")
+    namespace: Optional[str] = Query(None, description="Filter by namespace"),
 ):
     """Get cost forecast."""
     with REQUEST_LATENCY.labels(endpoint="/forecast").time():
@@ -310,9 +279,7 @@ async def get_forecast(
 
             REQUEST_COUNT.labels(endpoint="/forecast", method="GET", status="200").inc()
             return ForecastResponse(
-                success=True,
-                data=forecast,
-                metadata={"namespace_filter": namespace}
+                success=True, data=forecast, metadata={"namespace_filter": namespace}
             )
         except Exception as e:
             REQUEST_COUNT.labels(endpoint="/forecast", method="GET", status="500").inc()
@@ -322,29 +289,28 @@ async def get_forecast(
 @app.get("/forecast/budget", tags=["Forecast"])
 async def get_budget_status(
     monthly_budget: float = Query(500.0, description="Monthly budget in USD"),
-    days_elapsed: int = Query(15, description="Days elapsed in current month")
+    days_elapsed: int = Query(15, description="Days elapsed in current month"),
 ):
     """Get budget status and projections."""
     costs = cost_calculator.get_current_costs()
     current_spend = costs.total_daily * days_elapsed
 
     status = cost_forecaster.get_budget_status(
-        monthly_budget=monthly_budget,
-        current_spend=current_spend,
-        days_elapsed=days_elapsed
+        monthly_budget=monthly_budget, current_spend=current_spend, days_elapsed=days_elapsed
     )
 
     return {
         "monthly_budget": monthly_budget,
         "current_spend": round(current_spend, 2),
         "days_elapsed": days_elapsed,
-        **{k: round(v, 2) if isinstance(v, float) else v for k, v in status.items()}
+        **{k: round(v, 2) if isinstance(v, float) else v for k, v in status.items()},
     }
 
 
 # =============================================================================
 # Metrics Endpoint
 # =============================================================================
+
 
 @app.get("/metrics", tags=["Metrics"])
 async def metrics():
@@ -359,10 +325,11 @@ async def metrics():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "app:app",
         host=config.server.host,
         port=config.server.port,
         workers=config.server.workers,
-        log_level=config.server.log_level
+        log_level=config.server.log_level,
     )

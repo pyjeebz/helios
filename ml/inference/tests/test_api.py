@@ -65,7 +65,7 @@ class TestPredictionEndpoints:
             "metric": "cpu_utilization",
             "periods": 6,
             "model": "baseline",
-            "include_confidence": True
+            "include_confidence": True,
         }
 
         response = client.post("/predict", json=request)
@@ -86,11 +86,7 @@ class TestPredictionEndpoints:
 
     def test_predict_invalid_metric(self, client):
         """Test prediction with invalid metric."""
-        request = {
-            "metric": "invalid_metric",
-            "periods": 6,
-            "model": "baseline"
-        }
+        request = {"metric": "invalid_metric", "periods": 6, "model": "baseline"}
 
         response = client.post("/predict", json=request)
         assert response.status_code == 422  # Validation error
@@ -100,7 +96,7 @@ class TestPredictionEndpoints:
         request = {
             "metric": "cpu_utilization",
             "periods": 0,  # Invalid
-            "model": "baseline"
+            "model": "baseline",
         }
 
         response = client.post("/predict", json=request)
@@ -111,7 +107,7 @@ class TestPredictionEndpoints:
         request = {
             "metrics": ["cpu_utilization", "memory_utilization"],
             "periods": 6,
-            "model": "baseline"
+            "model": "baseline",
         }
 
         response = client.post("/predict/batch", json=request)
@@ -136,23 +132,22 @@ class TestAnomalyDetection:
 
         # Normal values
         for i in range(20):
-            data_points.append({
-                "timestamp": (base_time + timedelta(minutes=i*5)).isoformat(),
-                "value": 0.15 + (i % 3) * 0.02  # Values around 0.15-0.19
-            })
+            data_points.append(
+                {
+                    "timestamp": (base_time + timedelta(minutes=i * 5)).isoformat(),
+                    "value": 0.15 + (i % 3) * 0.02,  # Values around 0.15-0.19
+                }
+            )
 
         # Add anomaly
-        data_points.append({
-            "timestamp": (base_time + timedelta(minutes=100)).isoformat(),
-            "value": 0.95  # Obvious anomaly
-        })
+        data_points.append(
+            {
+                "timestamp": (base_time + timedelta(minutes=100)).isoformat(),
+                "value": 0.95,  # Obvious anomaly
+            }
+        )
 
-        request = {
-            "metrics": {
-                "cpu_utilization": data_points
-            },
-            "threshold_sigma": 2.5
-        }
+        request = {"metrics": {"cpu_utilization": data_points}, "threshold_sigma": 2.5}
 
         response = client.post("/detect", json=request)
         assert response.status_code == 200
@@ -173,17 +168,11 @@ class TestAnomalyDetection:
 
         # All normal values
         for i in range(20):
-            data_points.append({
-                "timestamp": (base_time + timedelta(minutes=i*5)).isoformat(),
-                "value": 0.15
-            })
+            data_points.append(
+                {"timestamp": (base_time + timedelta(minutes=i * 5)).isoformat(), "value": 0.15}
+            )
 
-        request = {
-            "metrics": {
-                "cpu_utilization": data_points
-            },
-            "threshold_sigma": 2.5
-        }
+        request = {"metrics": {"cpu_utilization": data_points}, "threshold_sigma": 2.5}
 
         response = client.post("/detect", json=request)
         assert response.status_code == 200
@@ -205,9 +194,9 @@ class TestRecommendations:
                 "cpu_request": "100m",
                 "memory_request": "256Mi",
                 "cpu_limit": "500m",
-                "memory_limit": "512Mi"
+                "memory_limit": "512Mi",
             },
-            "target_utilization": 0.7
+            "target_utilization": 0.7,
         }
 
         response = client.post("/recommend", json=request)
@@ -234,10 +223,10 @@ class TestRecommendations:
         base_time = datetime.utcnow()
         predictions = [
             {
-                "timestamp": (base_time + timedelta(minutes=i*5)).isoformat(),
+                "timestamp": (base_time + timedelta(minutes=i * 5)).isoformat(),
                 "value": 0.85 + i * 0.02,  # Increasing utilization
                 "lower_bound": 0.80,
-                "upper_bound": 0.95
+                "upper_bound": 0.95,
             }
             for i in range(6)
         ]
@@ -250,10 +239,10 @@ class TestRecommendations:
                 "cpu_request": "100m",
                 "memory_request": "256Mi",
                 "cpu_limit": "500m",
-                "memory_limit": "512Mi"
+                "memory_limit": "512Mi",
             },
             "predictions": predictions,
-            "target_utilization": 0.7
+            "target_utilization": 0.7,
         }
 
         response = client.post("/recommend", json=request)
@@ -299,9 +288,7 @@ class TestErrorHandling:
     def test_invalid_json(self, client):
         """Test handling of invalid JSON."""
         response = client.post(
-            "/predict",
-            content="invalid json",
-            headers={"Content-Type": "application/json"}
+            "/predict", content="invalid json", headers={"Content-Type": "application/json"}
         )
         assert response.status_code == 422
 
@@ -310,7 +297,7 @@ class TestErrorHandling:
         request = {
             # Missing "metric" field
             "periods": 6,
-            "model": "baseline"
+            "model": "baseline",
         }
 
         response = client.post("/predict", json=request)

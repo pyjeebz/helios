@@ -81,9 +81,9 @@ class HeliosTrainingPipeline:
         Returns:
             Raw metrics DataFrame
         """
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("Stage 1: Fetching Data")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         df = self.fetcher.fetch_all_metrics(hours=hours, namespace=namespace)
 
@@ -139,13 +139,15 @@ class HeliosTrainingPipeline:
         memory = 50 + 0.1 * rps + np.random.randn(n) * 3
         latency = 50 + 0.2 * (cpu - 30) + np.random.randn(n) * 5
 
-        df = pd.DataFrame({
-            "timestamp": dates,
-            "rps": np.maximum(rps, 0),
-            "cpu_usage": np.clip(cpu, 0, 100),
-            "memory_usage": np.clip(memory, 0, 100),
-            "latency_p95": np.maximum(latency, 10),
-        })
+        df = pd.DataFrame(
+            {
+                "timestamp": dates,
+                "rps": np.maximum(rps, 0),
+                "cpu_usage": np.clip(cpu, 0, 100),
+                "memory_usage": np.clip(memory, 0, 100),
+                "latency_p95": np.maximum(latency, 10),
+            }
+        )
 
         return df
 
@@ -159,9 +161,9 @@ class HeliosTrainingPipeline:
         Returns:
             Feature-engineered DataFrame
         """
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("Stage 2: Feature Engineering")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         df = df if df is not None else self.data_
         if df is None:
@@ -169,7 +171,9 @@ class HeliosTrainingPipeline:
 
         # Get numeric columns for feature engineering
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-        target_cols = [c for c in numeric_cols if c in ["rps", "cpu_usage", "memory_usage", "latency_p95"]]
+        target_cols = [
+            c for c in numeric_cols if c in ["rps", "cpu_usage", "memory_usage", "latency_p95"]
+        ]
 
         if not target_cols:
             target_cols = numeric_cols[:4]  # Use first 4 numeric columns
@@ -196,9 +200,9 @@ class HeliosTrainingPipeline:
         Returns:
             Evaluation metrics
         """
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("Stage 3: Training Baseline Model")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         target = target or self.target_metric
 
@@ -245,9 +249,9 @@ class HeliosTrainingPipeline:
         Returns:
             Evaluation metrics
         """
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("Stage 4: Training Prophet Forecaster")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         target = target or self.target_metric
 
@@ -290,9 +294,9 @@ class HeliosTrainingPipeline:
         Returns:
             Evaluation metrics
         """
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("Stage 5: Training Anomaly Detector")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         target = target or self.target_metric
 
@@ -300,9 +304,11 @@ class HeliosTrainingPipeline:
             target = df.select_dtypes(include=[np.number]).columns[0]
 
         # Prepare features (exclude timestamp and target)
-        feature_cols = [c for c in df.columns
-                       if c not in ["timestamp", target]
-                       and df[c].dtype in [np.float64, np.int64]]
+        feature_cols = [
+            c
+            for c in df.columns
+            if c not in ["timestamp", target] and df[c].dtype in [np.float64, np.int64]
+        ]
 
         # Drop rows with NaN
         df_clean = df[feature_cols + [target]].dropna()
@@ -323,7 +329,7 @@ class HeliosTrainingPipeline:
         print("✓ Anomaly Detector Results:")
         print(f"  Threshold: {metrics['threshold']:.4f}")
         print(f"  Anomalies Detected: {metrics['n_anomalies_detected']}")
-        print(f"  Anomaly Rate: {metrics['anomaly_rate']*100:.2f}%")
+        print(f"  Anomaly Rate: {metrics['anomaly_rate'] * 100:.2f}%")
 
         # Print top features
         top_features = self.anomaly_detector.get_top_features(5)
@@ -335,27 +341,31 @@ class HeliosTrainingPipeline:
 
     def compare_models(self) -> pd.DataFrame:
         """Compare all trained models."""
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("Model Comparison")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         comparison = []
 
         if "baseline" in self.metrics_:
-            comparison.append({
-                "Model": "Baseline (MA+Trend)",
-                "MAE": self.metrics_["baseline"]["mae"],
-                "RMSE": self.metrics_["baseline"]["rmse"],
-                "MAPE": self.metrics_["baseline"]["mape"],
-            })
+            comparison.append(
+                {
+                    "Model": "Baseline (MA+Trend)",
+                    "MAE": self.metrics_["baseline"]["mae"],
+                    "RMSE": self.metrics_["baseline"]["rmse"],
+                    "MAPE": self.metrics_["baseline"]["mape"],
+                }
+            )
 
         if "prophet" in self.metrics_:
-            comparison.append({
-                "Model": "Prophet",
-                "MAE": self.metrics_["prophet"]["mae"],
-                "RMSE": self.metrics_["prophet"]["rmse"],
-                "MAPE": self.metrics_["prophet"]["mape"],
-            })
+            comparison.append(
+                {
+                    "Model": "Prophet",
+                    "MAE": self.metrics_["prophet"]["mae"],
+                    "RMSE": self.metrics_["prophet"]["rmse"],
+                    "MAPE": self.metrics_["prophet"]["mape"],
+                }
+            )
 
         df_comparison = pd.DataFrame(comparison)
 
@@ -365,8 +375,7 @@ class HeliosTrainingPipeline:
             # Calculate improvement
             if len(comparison) >= 2:
                 improvement = (
-                    (comparison[0]["MAE"] - comparison[1]["MAE"])
-                    / comparison[0]["MAE"] * 100
+                    (comparison[0]["MAE"] - comparison[1]["MAE"]) / comparison[0]["MAE"] * 100
                 )
                 print(f"\n✓ Prophet vs Baseline: {improvement:.1f}% MAE improvement")
 
@@ -374,9 +383,9 @@ class HeliosTrainingPipeline:
 
     def save_artifacts(self):
         """Save trained models and metrics."""
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("Saving Artifacts")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -402,9 +411,13 @@ class HeliosTrainingPipeline:
                 "n_columns": len(self.data_.columns),
                 "columns": list(self.data_.columns),
                 "date_range": {
-                    "start": str(self.data_["timestamp"].min()) if "timestamp" in self.data_.columns else None,
-                    "end": str(self.data_["timestamp"].max()) if "timestamp" in self.data_.columns else None,
-                }
+                    "start": str(self.data_["timestamp"].min())
+                    if "timestamp" in self.data_.columns
+                    else None,
+                    "end": str(self.data_["timestamp"].max())
+                    if "timestamp" in self.data_.columns
+                    else None,
+                },
             }
             with open(summary_path, "w") as f:
                 json.dump(summary, f, indent=2)
@@ -425,9 +438,9 @@ class HeliosTrainingPipeline:
         Returns:
             Dictionary with all results
         """
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("HELIOS ML TRAINING PIPELINE")
-        print("="*60)
+        print("=" * 60)
         print(f"Started at: {datetime.now()}")
         print(f"Config: {hours} hours, namespace='{namespace}'")
 
@@ -452,9 +465,9 @@ class HeliosTrainingPipeline:
         # Save artifacts
         self.save_artifacts()
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("PIPELINE COMPLETE")
-        print("="*60)
+        print("=" * 60)
 
         return {
             "metrics": self.metrics_,

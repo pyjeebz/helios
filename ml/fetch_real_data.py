@@ -1,4 +1,5 @@
 """Fetch REAL metrics from Cloud Monitoring for ML training."""
+
 import os
 from datetime import datetime, timedelta
 
@@ -24,6 +25,7 @@ aggregation = monitoring_v3.Aggregation(
     group_by_fields=["resource.labels.namespace_name"],
 )
 
+
 def fetch_metric(metric_type, namespace="saleor"):
     """Fetch a metric and return as list of records."""
     filter_str = f'metric.type = "{metric_type}" AND resource.labels.namespace_name = "{namespace}"'
@@ -41,7 +43,7 @@ def fetch_metric(metric_type, namespace="saleor"):
         for ts in client.list_time_series(request=request):
             for point in ts.points:
                 timestamp = point.interval.end_time
-                if hasattr(timestamp, 'replace'):
+                if hasattr(timestamp, "replace"):
                     timestamp = timestamp.replace(tzinfo=None)
 
                 # Extract value - try different fields
@@ -57,14 +59,17 @@ def fetch_metric(metric_type, namespace="saleor"):
                         except:
                             pass
 
-                records.append({
-                    "timestamp": timestamp,
-                    "value": value,
-                })
+                records.append(
+                    {
+                        "timestamp": timestamp,
+                        "value": value,
+                    }
+                )
     except Exception as e:
         print(f"  Error: {e}")
 
     return records
+
 
 # Fetch metrics for saleor namespace
 print("=== Fetching Saleor Container Metrics (last 6 hours) ===\n")

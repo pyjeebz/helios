@@ -48,7 +48,7 @@ class RecommenderService:
             # Return no-action recommendation during cooldown
             return RecommendationResponse(
                 recommendations=[self._create_cooldown_recommendation(request)],
-                metadata={"cooldown_active": True}
+                metadata={"cooldown_active": True},
             )
 
         # Analyze current state and predictions
@@ -72,7 +72,7 @@ class RecommenderService:
             metadata={
                 "cooldown_active": False,
                 "target_utilization": request.target_utilization,
-            }
+            },
         )
 
     def _check_cooldown(self, workload_key: str) -> bool:
@@ -85,27 +85,23 @@ class RecommenderService:
 
         return elapsed >= config.recommendation.cooldown_minutes
 
-    def _create_cooldown_recommendation(
-        self,
-        request: RecommendationRequest
-    ) -> Recommendation:
+    def _create_cooldown_recommendation(self, request: RecommendationRequest) -> Recommendation:
         """Create a no-action recommendation during cooldown."""
         return Recommendation(
             workload=request.workload,
             namespace=request.namespace,
             current_state=request.current_state,
-            actions=[ScalingAction(
-                action=ActionType.NO_ACTION,
-                confidence=1.0,
-                reason="In cooldown period, no action recommended",
-            )],
+            actions=[
+                ScalingAction(
+                    action=ActionType.NO_ACTION,
+                    confidence=1.0,
+                    reason="In cooldown period, no action recommended",
+                )
+            ],
             time_horizon_minutes=config.recommendation.cooldown_minutes,
         )
 
-    def _analyze_and_recommend(
-        self,
-        request: RecommendationRequest
-    ) -> list[ScalingAction]:
+    def _analyze_and_recommend(self, request: RecommendationRequest) -> list[ScalingAction]:
         """Analyze state and generate recommendations."""
         actions = []
 
@@ -132,11 +128,13 @@ class RecommenderService:
 
         # Otherwise, no scaling needed
         else:
-            actions.append(ScalingAction(
-                action=ActionType.NO_ACTION,
-                confidence=0.9,
-                reason=f"Utilization ({effective_util:.1%}) is within target range",
-            ))
+            actions.append(
+                ScalingAction(
+                    action=ActionType.NO_ACTION,
+                    confidence=0.9,
+                    reason=f"Utilization ({effective_util:.1%}) is within target range",
+                )
+            )
 
         # Check for resource optimization
         resource_action = self._recommend_resource_optimization(request)
@@ -155,9 +153,7 @@ class RecommenderService:
         current_replicas = request.current_state.replicas
 
         # Calculate target replicas to achieve target utilization
-        target_replicas = math.ceil(
-            current_replicas * (current_util / target_util)
-        )
+        target_replicas = math.ceil(current_replicas * (current_util / target_util))
 
         # Respect max replicas
         target_replicas = min(target_replicas, config.recommendation.max_replicas)
@@ -189,7 +185,7 @@ class RecommenderService:
         # Calculate target replicas
         target_replicas = max(
             math.ceil(current_replicas * (current_util / target_util)),
-            config.recommendation.min_replicas
+            config.recommendation.min_replicas,
         )
 
         # Calculate potential savings
@@ -215,8 +211,7 @@ class RecommenderService:
         )
 
     def _recommend_resource_optimization(
-        self,
-        request: RecommendationRequest
+        self, request: RecommendationRequest
     ) -> Optional[ScalingAction]:
         """Check for vertical scaling opportunities."""
         # Parse current resource requests
@@ -253,8 +248,7 @@ class RecommenderService:
         return 0.5
 
     def _get_predicted_utilization(
-        self,
-        predictions: Optional[list[PredictionPoint]]
+        self, predictions: Optional[list[PredictionPoint]]
     ) -> Optional[float]:
         """Get max predicted utilization from predictions."""
         if not predictions:
@@ -265,7 +259,7 @@ class RecommenderService:
 
     def _parse_cpu(self, cpu_str: str) -> float:
         """Parse CPU string to millicores."""
-        if cpu_str.endswith('m'):
+        if cpu_str.endswith("m"):
             return float(cpu_str[:-1])
         else:
             return float(cpu_str) * 1000
@@ -273,17 +267,17 @@ class RecommenderService:
     def _parse_memory(self, mem_str: str) -> float:
         """Parse memory string to bytes."""
         units = {
-            'Ki': 1024,
-            'Mi': 1024 ** 2,
-            'Gi': 1024 ** 3,
-            'K': 1000,
-            'M': 1000 ** 2,
-            'G': 1000 ** 3,
+            "Ki": 1024,
+            "Mi": 1024**2,
+            "Gi": 1024**3,
+            "K": 1000,
+            "M": 1000**2,
+            "G": 1000**3,
         }
 
         for unit, multiplier in units.items():
             if mem_str.endswith(unit):
-                return float(mem_str[:-len(unit)]) * multiplier
+                return float(mem_str[: -len(unit)]) * multiplier
 
         return float(mem_str)
 

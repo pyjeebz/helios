@@ -257,12 +257,14 @@ if __name__ == "__main__":
     # Test with sample data
     np.random.seed(42)
     dates = pd.date_range(start="2025-12-31", periods=100, freq="5min")
-    sample_df = pd.DataFrame({
-        "timestamp": dates,
-        "cpu_usage": np.random.randn(100).cumsum() + 50,
-        "memory_usage": np.random.randn(100).cumsum() + 70,
-        "rps": np.abs(np.random.randn(100) * 10 + 50),
-    })
+    sample_df = pd.DataFrame(
+        {
+            "timestamp": dates,
+            "cpu_usage": np.random.randn(100).cumsum() + 50,
+            "memory_usage": np.random.randn(100).cumsum() + 70,
+            "rps": np.abs(np.random.randn(100) * 10 + 50),
+        }
+    )
 
     engineer = FeatureEngineer()
     result = engineer.transform(sample_df)

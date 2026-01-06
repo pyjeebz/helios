@@ -34,7 +34,7 @@ class HeliosInferenceUser(HttpUser):
         payload = {
             "metric": "cpu_utilization",
             "model": "baseline",
-            "periods": random.choice([6, 12, 24])
+            "periods": random.choice([6, 12, 24]),
         }
         self.client.post("/predict", json=payload)
 
@@ -44,7 +44,7 @@ class HeliosInferenceUser(HttpUser):
         payload = {
             "metric": "memory_utilization",
             "model": "baseline",
-            "periods": random.choice([6, 12, 24])
+            "periods": random.choice([6, 12, 24]),
         }
         self.client.post("/predict", json=payload)
 
@@ -54,7 +54,7 @@ class HeliosInferenceUser(HttpUser):
         payload = {
             "metrics": ["cpu_utilization", "memory_utilization"],
             "model": "baseline",
-            "periods": 12
+            "periods": 12,
         }
         self.client.post("/predict/batch", json=payload)
 
@@ -69,17 +69,14 @@ class HeliosInferenceUser(HttpUser):
             # 10% chance of anomaly
             if random.random() < 0.1:
                 value = random.uniform(0.8, 1.0)
-            data_points.append({
-                "timestamp": f"2026-01-02T{10+i//6:02d}:{(i%6)*10:02d}:00Z",
-                "value": value
-            })
+            data_points.append(
+                {
+                    "timestamp": f"2026-01-02T{10 + i // 6:02d}:{(i % 6) * 10:02d}:00Z",
+                    "value": value,
+                }
+            )
 
-        payload = {
-            "metrics": {
-                "cpu_utilization": data_points
-            },
-            "threshold_sigma": 2.5
-        }
+        payload = {"metrics": {"cpu_utilization": data_points}, "threshold_sigma": 2.5}
         self.client.post("/detect", json=payload)
 
     @task(5)
@@ -93,9 +90,9 @@ class HeliosInferenceUser(HttpUser):
                 "cpu_request": random.choice(["100m", "250m", "500m"]),
                 "memory_request": random.choice(["256Mi", "512Mi", "1Gi"]),
                 "cpu_limit": "1000m",
-                "memory_limit": "2Gi"
+                "memory_limit": "2Gi",
             },
-            "target_utilization": 0.7
+            "target_utilization": 0.7,
         }
         self.client.post("/recommend", json=payload)
 
@@ -116,6 +113,6 @@ class HighLoadUser(HttpUser):
         payload = {
             "metric": random.choice(["cpu_utilization", "memory_utilization"]),
             "model": "baseline",
-            "periods": 6
+            "periods": 6,
         }
         self.client.post("/predict", json=payload)
