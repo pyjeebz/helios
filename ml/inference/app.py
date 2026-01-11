@@ -375,6 +375,49 @@ async def prometheus_metrics():
 
 
 # =============================================================================
+# Ingestion Endpoint (from helios-agent)
+# =============================================================================
+
+
+@app.post(
+    "/api/v1/ingest",
+    tags=["Ingest"],
+    summary="Ingest metrics from agents",
+)
+async def ingest_metrics(request: Request) -> dict:
+    """Receive metrics from helios-agent and acknowledge receipt.
+
+    The agent posts a JSON payload like:
+    {
+      "metrics": [ { ...metric sample... }, ... ],
+      "agent_version": "0.1.0",
+      "sent_at": "..."
+    }
+    """
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    metrics = payload.get("metrics") if isinstance(payload, dict) else None
+    if not isinstance(metrics, list):
+        raise HTTPException(status_code=400, detail="Missing or invalid 'metrics' field")
+
+    # For now we just log and acknowledge; later this can enqueue into processing pipeline
+    received = len(metrics)
+    logger.info(f"Ingest received {received} metrics from agent")
+
+    # Optionally record an internal stat (if metric helpers are available)
+    try:
+        record_request(endpoint="/api/v1/ingest", method="POST", status=200, latency=0)
+    except Exception:
+        # ignore if metrics helper isn't available or fails
+        pass
+
+    return {"received": received}
+
+
+# =============================================================================
 # Info Endpoints
 # =============================================================================
 
