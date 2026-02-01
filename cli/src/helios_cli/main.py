@@ -15,7 +15,7 @@ console = Console()
     "--endpoint",
     "-e",
     envvar="HELIOS_ENDPOINT",
-    default="http://localhost:8000",
+    default="http://104.155.137.61",
     help="Helios API endpoint URL",
 )
 @click.option(
@@ -37,19 +37,18 @@ def cli(ctx: click.Context, endpoint: str, api_key: str | None, output: str) -> 
     
     ML-powered resource forecasting and anomaly detection for Kubernetes.
     
-    Examples:
+    \b
+    Quick Commands (all have sensible defaults):
+        helios status                    # Check service health
+        helios detect                    # Detect anomalies
+        helios recommend                 # Get scaling recommendations
+        helios predict cpu               # CPU predictions (needs models)
     
-        # Get CPU prediction for a deployment
-        helios predict cpu --deployment my-app --namespace default
-        
-        # Detect anomalies in current metrics
-        helios detect --deployment my-app
-        
-        # Get scaling recommendations
-        helios recommend --deployment my-app
-        
-        # Check Helios service status
-        helios status
+    \b
+    Examples with options:
+        helios detect -d my-app -n prod --sensitivity high
+        helios recommend -d my-app --cost-optimize
+        helios predict cpu -d my-app -p 24
     """
     ctx.ensure_object(dict)
     ctx.obj["endpoint"] = endpoint
