@@ -24,9 +24,29 @@ spec:
     spec:
       serviceAccountName: helios-inference
       
+      # Init container to download models from GCS
+      initContainers:
+        - name: model-downloader
+          image: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "Downloading models from GCS..."
+              gcloud storage cp gs://helios-ml-models/cpu_forecaster/1.0.0/model.pkl /app/models/cpu_forecaster/1.0.0/model.pkl || true
+              gcloud storage cp gs://helios-ml-models/anomaly_detector/1.0.0/model.pkl /app/models/anomaly_detector/1.0.0/model.pkl || true
+              gcloud storage cp gs://helios-ml-models/prophet_model.joblib /app/models/prophet_model.joblib || true
+              echo "Models downloaded:"
+              find /app/models -type f
+              echo "Done"
+          volumeMounts:
+            - name: models
+              mountPath: /app/models
+      
       containers:
         - name: inference
-          image: gcr.io/YOUR_GCP_PROJECT_ID/helios-inference:latest
+          image: gcr.io/gen-lang-client-0702968356/helios-inference:0.3.0
           imagePullPolicy: Always
           
           ports:
@@ -37,6 +57,10 @@ spec:
           envFrom:
             - configMapRef:
                 name: helios-inference-config
+          
+          env:
+            - name: MODELS_GCS_BUCKET
+              value: "helios-ml-models"
           
           resources:
             requests:
@@ -72,9 +96,6 @@ spec:
       volumes:
         - name: models
           emptyDir: {}
-          # In production, use PVC or GCS:
-          # persistentVolumeClaim:
-          #   claimName: helios-models
       
       # Pod anti-affinity to spread across nodes
       affinity:
