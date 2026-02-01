@@ -3,7 +3,7 @@
 
 # Helios API endpoint
 endpoint:
-  url: http://localhost:8080
+  url: http://104.155.137.61
   api_key: ${HELIOS_API_KEY}  # Or set via environment
   timeout: 30
   retry_attempts: 3
@@ -67,12 +67,21 @@ sources:
   #     subscription_id: ${AZURE_SUBSCRIPTION_ID}
 
   # Google Cloud Monitoring (requires service account)
-  # - name: gcp-monitoring
-  #   type: gcp_monitoring
-  #   enabled: false
-  #   credentials:
-  #     project_id: ${GCP_PROJECT_ID}
-  #     credentials_file: /path/to/service-account.json
+  - name: gcp-monitoring
+    type: gcp_monitoring
+    enabled: true
+    credentials:
+      project_id: gen-lang-client-0702968356
+      # Uses ADC (Application Default Credentials) - no file needed if gcloud auth is set
+    interval: 30
+    metrics:
+      # GKE container metrics (gauges work best)
+      - kubernetes.io/container/cpu/limit_utilization
+      - kubernetes.io/container/memory/limit_utilization
+      - kubernetes.io/container/memory/used_bytes
+      # GKE node metrics
+      - kubernetes.io/node/cpu/allocatable_utilization
+      - kubernetes.io/node/memory/allocatable_utilization
 
 # Agent settings
 batch_size: 100
