@@ -110,6 +110,13 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    strategy:
+      matrix:
+        package:
+          - name: helios-platform-agent
+            path: agent
+          - name: helios-cli
+            path: cli
     steps:
       - uses: actions/checkout@v4
 
@@ -121,24 +128,19 @@ jobs:
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip
-          pip install build twine
+          pip install build twine hatchling
 
-      - name: Build package
-        run: |
-          if [ -f "pyproject.toml" ]; then
-            python -m build
-          else
-            echo "pyproject.toml not found, skipping PyPI release"
-            exit 0
-          fi
+      - name: Build ${{ matrix.package.name }}
+        working-directory: ${{ matrix.package.path }}
+        run: python -m build
 
-      - name: Publish to PyPI
-        if: hashFiles('pyproject.toml') != ''
+      - name: Publish ${{ matrix.package.name }} to PyPI
+        working-directory: ${{ matrix.package.path }}
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
-          twine upload dist/* --skip-existing || echo "PyPI upload failed, continuing..."
+          twine upload dist/* --skip-existing || echo "PyPI upload failed for ${{ matrix.package.name }}, continuing..."
 
   create-release:
     name: Create GitHub Release
