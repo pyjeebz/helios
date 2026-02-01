@@ -1,161 +1,199 @@
-# Helios - Complete Setup Guide
+# Helios Quick Start Guide
+
+Get Helios running in minutes with this step-by-step guide.
 
 ## Prerequisites
 
-- Google Cloud SDK (`gcloud`)
-- Terraform >= 1.0
-- kubectl
 - Python 3.11+
-- Docker (optional, for local builds)
+- Docker (for local development)
+- kubectl (for Kubernetes deployment)
+- gcloud CLI (for GCP deployment)
 
 ---
 
-## Step 1: Initial Setup
+## Option 1: Local Development (Docker)
 
-```powershell
-# Clone the repository (if not already done)
-git clone https://github.com/your-org/helios.git
+The fastest way to try Helios locally.
+
+```bash
+# Clone the repository
+git clone https://github.com/pyjeebz/helios.git
 cd helios
 
-# Set your GCP Project ID
-$GCP_PROJECT_ID = "your-gcp-project-id"
+# Start inference service
+docker compose up -d inference
 
-# Run the setup script (creates .env and updates manifests)
-.\scripts\setup.ps1 -ProjectId $GCP_PROJECT_ID
+# Verify it's running
+curl http://localhost:8080/health
+# {"status": "healthy", "models_loaded": 3}
+
+# Test prediction endpoint
+curl -X POST http://localhost:8080/api/v1/predict \
+  -H "Content-Type: application/json" \
+  -d '{"deployment": "test", "namespace": "default", "metric": "cpu", "periods": 6}'
 ```
 
 ---
 
-## Step 2: GCP Authentication
+## Option 2: GCP Deployment (Production)
 
-```powershell
-# Login to GCP
+Deploy Helios to Google Kubernetes Engine with GCP Cloud Monitoring integration.
+
+### Step 1: Setup GCP Project
+
+```bash
+# Set your project ID
+export GCP_PROJECT_ID="your-gcp-project-id"
+
+# Authenticate
 gcloud auth login
-
-# Set the project
 gcloud config set project $GCP_PROJECT_ID
 
 # Enable required APIs
-gcloud services enable `
-    container.googleapis.com `
-    cloudbuild.googleapis.com `
-    monitoring.googleapis.com `
-    cloudresourcemanager.googleapis.com `
-    sqladmin.googleapis.com `
-    redis.googleapis.com `
-    storage.googleapis.com
-
-# Set up Application Default Credentials (for local development)
-gcloud auth application-default login
+gcloud services enable \
+  container.googleapis.com \
+  cloudbuild.googleapis.com \
+  monitoring.googleapis.com \
+  storage.googleapis.com
 ```
 
----
+### Step 2: Create GKE Cluster (if needed)
 
-## Step 3: Provision Infrastructure with Terraform
+```bash
+# Create cluster
+gcloud container clusters create helios-cluster \
+  --region us-central1 \
+  --num-nodes 2 \
+  --machine-type e2-medium
 
-```powershell
-# Navigate to Terraform directory
-cd infra/terraform/gcp
-
-# Initialize Terraform
-terraform init
-
-# Review the plan
-terraform plan -var="project_id=$GCP_PROJECT_ID"
-
-# Apply (creates GKE cluster, CloudSQL, Redis, etc.)
-terraform apply -var="project_id=$GCP_PROJECT_ID"
-
-# Get GKE credentials
-gcloud container clusters get-credentials helios-dev-gke --region us-central1
-
-# Return to project root
-cd ../../..
+# Get credentials
+gcloud container clusters get-credentials helios-cluster --region us-central1
 ```
 
----
+### Step 3: Create GCS Bucket for Models
 
-## Step 4: Deploy Monitoring Stack
+```bash
+# Create bucket
+gsutil mb gs://${GCP_PROJECT_ID}-helios-models
 
-```powershell
-# Create namespaces
-kubectl create namespace monitoring
-kubectl create namespace helios
-
-# Deploy Prometheus & Grafana
-kubectl apply -k infra/kubernetes/monitoring/
-
-# Wait for pods to be ready
-kubectl wait --for=condition=ready pod -l app=prometheus -n monitoring --timeout=300s
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana -n monitoring --timeout=300s
+# Enable uniform bucket-level access
+gsutil uniformbucketlevelaccess set on gs://${GCP_PROJECT_ID}-helios-models
 ```
 
----
+### Step 4: Train Models (Optional)
 
-## Step 5: Deploy Demo Application (Saleor)
+Train on your GCP Cloud Monitoring data:
 
-```powershell
-# Deploy Saleor e-commerce platform
-kubectl apply -k infra/kubernetes/saleor/overlays/dev/
-
-# Wait for deployment
-kubectl wait --for=condition=available deployment/saleor-api -n saleor --timeout=300s
-
-# Verify
-kubectl get pods -n saleor
-```
-
----
-
-## Step 6: Set Up Python Environment
-
-```powershell
-# Create virtual environment
+```bash
+# Setup Python environment
 python -m venv .venv
-
-# Activate it
-.\.venv\Scripts\Activate.ps1
-
-# Install ML dependencies
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r ml/requirements.txt
-```
 
----
-
-## Step 7: Train ML Models
-
-```powershell
-# Navigate to ML directory
+# Train models
 cd ml
+python train.py --namespace your-namespace --hours 24
 
-# Fetch real metrics data (requires GKE cluster running)
-python fetch_real_data.py
-
-# Train the models
-python train.py
-
-# Upload models to GCS
-$BUCKET = "helios-models-$GCP_PROJECT_ID"
-gcloud storage buckets create gs://$BUCKET --location=us-central1
-gcloud storage cp models/*.joblib gs://$BUCKET/models/
-
-# Return to root
-cd ..
+# Upload to GCS
+gsutil cp -r artifacts/* gs://${GCP_PROJECT_ID}-helios-models/
 ```
 
----
+### Step 5: Deploy Inference Service
 
-## Step 8: Build & Deploy Inference Service
+```bash
+# Build container image
+gcloud builds submit --config cloudbuild.yaml
 
-```powershell
-# Build with Cloud Build
-gcloud builds submit --config=cloudbuild.yaml --substitutions=_TAG_NAME=0.2.0
+# Update deployment with your project ID
+sed -i "s/GCP_PROJECT_ID/$GCP_PROJECT_ID/g" infra/kubernetes/helios-inference/deployment.yaml
 
-# Deploy to Kubernetes
-kubectl apply -k infra/kubernetes/helios-inference/
+# Deploy to GKE
+kubectl create namespace helios
+kubectl apply -f infra/kubernetes/helios-inference/
 
 # Wait for deployment
 kubectl wait --for=condition=available deployment/helios-inference -n helios --timeout=300s
+
+# Get external IP
+kubectl get svc helios-inference -n helios
+```
+
+### Step 6: Install CLI & Agent
+
+```bash
+# Install CLI
+pip install helios-cli
+
+# Install agent with GCP support
+pip install helios-agent[gcp]
+```
+
+### Step 7: Configure Agent
+
+Create `helios-agent.yaml`:
+
+```yaml
+agent:
+  collection_interval: 60
+  log_level: INFO
+
+sources:
+  - type: gcp-monitoring
+    enabled: true
+    config:
+      project_id: your-gcp-project-id
+      metrics:
+        - kubernetes.io/container/cpu/limit_utilization
+        - kubernetes.io/container/memory/limit_utilization
+      filters:
+        namespace: your-namespace
+
+helios:
+  endpoint: http://EXTERNAL_IP:8080  # Replace with actual IP
+```
+
+### Step 8: Run Agent
+
+```bash
+# Test collection
+helios-agent run --config helios-agent.yaml --once
+
+# Run continuously
+helios-agent run --config helios-agent.yaml
+```
+
+### Step 9: Use CLI
+
+```bash
+# Set endpoint
+export HELIOS_ENDPOINT="http://EXTERNAL_IP:8080"
+
+# Get predictions
+helios predict cpu --deployment your-app --namespace your-namespace
+
+# Detect anomalies
+helios detect --deployment your-app --namespace your-namespace
+
+# Get recommendations
+helios recommend --deployment your-app --namespace your-namespace --replicas 2
+```
+
+---
+
+## Option 3: Helm Installation
+
+For existing Kubernetes clusters:
+
+```bash
+# Add Helm repo
+helm repo add helios https://pyjeebz.github.io/helios
+helm repo update
+
+# Install
+helm install helios helios/helios \
+  --namespace helios \
+  --create-namespace \
+  --set inference.image.tag=latest
 
 # Verify
 kubectl get pods -n helios
@@ -163,142 +201,88 @@ kubectl get pods -n helios
 
 ---
 
-## Step 9: Build & Deploy Cost Intelligence Service
+## Verify Installation
 
-```powershell
-# Build with Cloud Build
-gcloud builds submit --config=cloudbuild-cost.yaml --substitutions=_TAG_NAME=0.1.1
+### Check Service Health
 
-# Deploy to Kubernetes
-kubectl apply -k infra/kubernetes/helios-cost/
+```bash
+curl http://localhost:8080/health
+```
 
-# Wait for deployment
-kubectl wait --for=condition=available deployment/helios-cost-intelligence -n helios --timeout=300s
+Expected response:
+```json
+{
+  "status": "healthy",
+  "models_loaded": 3,
+  "models": ["baseline", "prophet", "xgboost"]
+}
+```
+
+### Check Models
+
+```bash
+curl http://localhost:8080/models
+```
+
+### Test Prediction
+
+```bash
+curl -X POST http://localhost:8080/api/v1/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "deployment": "test-app",
+    "namespace": "default",
+    "metric": "cpu",
+    "periods": 12
+  }'
 ```
 
 ---
 
-## Step 10: Deploy KEDA for Auto-Scaling
+## Next Steps
 
-```powershell
-# Install KEDA
-helm repo add kedacore https://kedacore.github.io/charts
-helm repo update
-helm install keda kedacore/keda --namespace keda --create-namespace
-
-# Apply ScaledObject for Saleor
-kubectl apply -f infra/kubernetes/keda/saleor-scaledobject.yaml
-```
-
----
-
-## Step 11: Verify Deployment
-
-```powershell
-# Check all Helios services
-kubectl get all -n helios
-
-# Port-forward inference service
-kubectl port-forward svc/helios-inference 8080:8080 -n helios
-
-# In another terminal - test the API
-Invoke-RestMethod -Uri "http://localhost:8080/health"
-Invoke-RestMethod -Uri "http://localhost:8080/predict?metric=cpu&horizon=15"
-Invoke-RestMethod -Uri "http://localhost:8080/detect"
-Invoke-RestMethod -Uri "http://localhost:8080/recommend"
-
-# Port-forward cost intelligence
-kubectl port-forward svc/helios-cost-intelligence 8081:8081 -n helios
-
-# Test cost APIs
-Invoke-RestMethod -Uri "http://localhost:8081/costs/summary"
-Invoke-RestMethod -Uri "http://localhost:8081/savings"
-Invoke-RestMethod -Uri "http://localhost:8081/efficiency/summary"
-```
-
----
-
-## Step 12: Access Dashboards
-
-```powershell
-# Grafana (default: admin/admin)
-kubectl port-forward svc/grafana 3000:80 -n monitoring
-# Open: http://localhost:3000
-
-# Prometheus
-kubectl port-forward svc/prometheus-server 9090:80 -n monitoring
-# Open: http://localhost:9090
-```
-
----
-
-## Step 13: Run Load Tests (Optional)
-
-```powershell
-# Deploy Locust
-kubectl apply -k infra/kubernetes/locust/
-
-# Port-forward Locust UI
-kubectl port-forward svc/locust-master 8089:8089 -n locust
-# Open: http://localhost:8089
-
-# Or run locally
-cd loadtest
-pip install locust
-locust -f locustfiles/locustfile.py --host=http://saleor-api.saleor.svc.cluster.local
-```
-
----
-
-## Quick Reference Commands
-
-```powershell
-# View logs
-kubectl logs -f deployment/helios-inference -n helios
-kubectl logs -f deployment/helios-cost-intelligence -n helios
-
-# Scale deployments
-kubectl scale deployment/helios-inference --replicas=3 -n helios
-
-# Check metrics
-kubectl get --raw /apis/external.metrics.k8s.io/v1beta1
-
-# Restart deployment
-kubectl rollout restart deployment/helios-inference -n helios
-
-# Delete everything (cleanup)
-terraform destroy -var="project_id=$GCP_PROJECT_ID"
-```
-
----
-
-## Environment Variables Reference
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `GCP_PROJECT_ID` | Your GCP project ID | `my-project-123456` |
-| `GCP_REGION` | GCP region | `us-central1` |
-| `GKE_CLUSTER_NAME` | GKE cluster name | `helios-dev-gke` |
-| `MODELS_GCS_BUCKET` | GCS bucket for models | `helios-models-xxx` |
+1. **Configure Alerting**: Set up Prometheus alerts based on Helios predictions
+2. **Enable KEDA**: Use predictions for predictive autoscaling
+3. **Grafana Dashboards**: Import Helios dashboards for visualization
+4. **Web Dashboard**: Deploy the upcoming web UI for ClickOps management
 
 ---
 
 ## Troubleshooting
 
-### Pods not starting
-```powershell
-kubectl describe pod <pod-name> -n helios
-kubectl logs <pod-name> -n helios
+### Models Not Loading
+
+```bash
+# Check pod logs
+kubectl logs -n helios deploy/helios-inference
+
+# Verify GCS bucket access
+gsutil ls gs://your-bucket/
 ```
 
-### Model loading errors
-```powershell
-# Verify models exist in GCS
-gcloud storage ls gs://helios-models-$GCP_PROJECT_ID/models/
-```
+### Agent Not Collecting
 
-### Permission errors
-```powershell
-# Check service account permissions
+```bash
+# Test with --once flag
+helios-agent run --config helios-agent.yaml --once
+
+# Check GCP permissions
 gcloud projects get-iam-policy $GCP_PROJECT_ID
 ```
+
+### Connection Refused
+
+```bash
+# Check service is running
+kubectl get svc -n helios
+
+# Verify endpoint
+curl http://your-endpoint:8080/health
+```
+
+---
+
+## Support
+
+- GitHub Issues: https://github.com/pyjeebz/helios/issues
+- Documentation: https://github.com/pyjeebz/helios/tree/main/docs
