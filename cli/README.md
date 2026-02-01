@@ -11,17 +11,17 @@ pip install helios-cli
 ## Quick Start
 
 ```bash
-# Check service status
-helios status
+# Configure endpoint
+export HELIOS_ENDPOINT="http://helios-inference:8080"
 
 # Get CPU predictions for a deployment
 helios predict cpu --deployment my-app --namespace default
 
 # Detect anomalies
-helios detect --deployment my-app
+helios detect --deployment my-app --namespace default
 
 # Get scaling recommendations
-helios recommend --deployment my-app
+helios recommend --deployment my-app --namespace default --replicas 2
 ```
 
 ## Configuration
@@ -29,19 +29,14 @@ helios recommend --deployment my-app
 ### Environment Variables
 
 ```bash
-export HELIOS_ENDPOINT="http://helios.example.com:8000"
-export HELIOS_API_KEY="your-api-key"
+export HELIOS_ENDPOINT="http://helios-inference:8080"
 ```
 
 ### Configuration File
 
 ```bash
-# Interactive setup
-helios config init
-
-# Or set individual values
-helios config set endpoint http://helios.example.com:8000
-helios config set api_key your-api-key
+# Set endpoint
+helios config set endpoint http://helios-inference:8080
 
 # View current configuration
 helios config show
@@ -51,105 +46,196 @@ helios config show
 
 ### `helios predict`
 
-Generate resource predictions.
+Forecast future resource utilization.
 
 ```bash
-# CPU prediction
-helios predict cpu --deployment my-app --horizon 24
+# Predict CPU for next 12 periods (default)
+helios predict cpu --deployment my-app --namespace default
 
-# Memory prediction  
-helios predict memory --deployment my-app --horizon 48
+# Predict memory with custom periods
+helios predict memory --deployment my-app --namespace default --periods 24
+
+# Short flags
+helios predict cpu -d my-app -n default -p 12
 ```
 
-Options:
-- `--deployment, -d` - Deployment name (required)
-- `--namespace, -n` - Kubernetes namespace (default: default)
-- `--horizon, -h` - Prediction horizon in hours (default: 24)
-- `--interval, -i` - Prediction interval (default: 1h)
+**Output:**
+```
+┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓
+┃ Period      ┃ Predicted    ┃ Confidence   ┃
+┡━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━┩
+│ +5min       │ 45.2%        │ ±5.1%        │
+│ +10min      │ 47.8%        │ ±6.2%        │
+│ ...         │ ...          │ ...          │
+└─────────────┴──────────────┴──────────────┘
+Model: baseline | Data points: 228
+```
 
 ### `helios detect`
 
-Detect anomalies in resource metrics.
+Detect anomalies in current metrics.
 
 ```bash
-helios detect --deployment my-app --sensitivity high
+# Check for anomalies
+helios detect --deployment my-app --namespace default
+
+# Short flags
+helios detect -d my-app -n default
 ```
 
-Options:
-- `--deployment, -d` - Deployment name (required)
-- `--namespace, -n` - Kubernetes namespace (default: default)
-- `--lookback, -l` - Hours of data to analyze (default: 1)
-- `--sensitivity, -s` - Detection sensitivity: low, medium, high (default: medium)
+**Output:**
+```
+╭─────────────────────────────────────────────╮
+│           Anomaly Detection Report          │
+├─────────────────────────────────────────────┤
+│  Status: HEALTHY                            │
+│  Anomaly Rate: 0.0%                         │
+│  Data Points: 12                            │
+╰─────────────────────────────────────────────╯
+```
 
 ### `helios recommend`
 
-Get scaling recommendations.
+Get scaling recommendations based on predictions.
 
 ```bash
-# Balanced recommendations
-helios recommend --deployment my-app
+# Get recommendations for current replicas
+helios recommend --deployment my-app --namespace default --replicas 2
 
-# Cost-optimized
-helios recommend --deployment my-app --cost-optimize
-
-# Performance-optimized
-helios recommend --deployment my-app --performance
+# Short flags
+helios recommend -d my-app -n default -r 2
 ```
 
-Options:
-- `--deployment, -d` - Deployment name (required)
-- `--namespace, -n` - Kubernetes namespace (default: default)
-- `--cost-optimize` - Prioritize cost savings
-- `--performance` - Prioritize performance
+**Output:**
+```
+╭─────────────────────────────────────────────╮
+│          Scaling Recommendations            │
+├─────────────────────────────────────────────┤
+│  SCALE OUT: 2 → 3 replicas (54%)            │
+│  Predicted Utilization: 87.2%               │
+│                                             │
+│  Resource Adjustments:                      │
+│  • CPU: 100m → 150m                         │
+│  • Memory: 256Mi (no change)                │
+╰─────────────────────────────────────────────╯
+```
 
 ### `helios status`
 
-Check Helios service status.
+Check connection to Helios inference service.
 
 ```bash
 helios status
 ```
 
-### `helios config`
-
-Manage CLI configuration.
-
-```bash
-# Show current config
-helios config show
-
-# Set values
-helios config set endpoint http://localhost:8000
-helios config set output json
-
-# Remove values
-helios config unset api_key
-
-# Interactive setup
-helios config init
+**Output:**
+```
+Helios Inference Service
+  Endpoint: http://helios-inference:8080
+  Status: Connected ✓
+  Models: 3 loaded (baseline, prophet, xgboost)
 ```
 
-## Global Options
+## Options
 
-- `--endpoint, -e` - Helios API endpoint (env: HELIOS_ENDPOINT)
-- `--api-key` - API key for authentication (env: HELIOS_API_KEY)
-- `--output, -o` - Output format: table, json, yaml (default: table)
-- `--version` - Show version
-- `--help` - Show help
+### Global Options
 
-## Output Formats
+| Option | Description |
+|--------|-------------|
+| `--endpoint`, `-e` | Override HELIOS_ENDPOINT |
+| `--format`, `-f` | Output format: `table`, `json`, `yaml` |
+| `--verbose`, `-v` | Enable verbose output |
+| `--help` | Show help message |
+
+### Predict Options
+
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--deployment` | `-d` | Deployment name | Required |
+| `--namespace` | `-n` | Kubernetes namespace | `default` |
+| `--periods` | `-p` | Forecast periods | `12` |
+| `--model` | `-m` | Model to use | `baseline` |
+
+### Detect Options
+
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--deployment` | `-d` | Deployment name | Required |
+| `--namespace` | `-n` | Kubernetes namespace | `default` |
+| `--threshold` | `-t` | Anomaly threshold | `2.5` sigma |
+
+### Recommend Options
+
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--deployment` | `-d` | Deployment name | Required |
+| `--namespace` | `-n` | Kubernetes namespace | `default` |
+| `--replicas` | `-r` | Current replica count | Required |
+
+## JSON Output
+
+All commands support JSON output for scripting:
 
 ```bash
-# Default table format
-helios predict cpu -d my-app
+# Get predictions as JSON
+helios predict cpu -d my-app -n default -f json
 
-# JSON output
-helios predict cpu -d my-app -o json
-
-# YAML output
-helios predict cpu -d my-app -o yaml
+# Parse with jq
+helios recommend -d my-app -n default -r 2 -f json | jq '.recommended_replicas'
 ```
+
+## Examples
+
+### CI/CD Integration
+
+```bash
+#!/bin/bash
+# Check if scaling is needed before deployment
+
+RECOMMENDATION=$(helios recommend -d my-app -n prod -r 2 -f json)
+SCALE_ACTION=$(echo $RECOMMENDATION | jq -r '.action')
+
+if [ "$SCALE_ACTION" = "scale_out" ]; then
+  NEW_REPLICAS=$(echo $RECOMMENDATION | jq -r '.recommended_replicas')
+  kubectl scale deployment my-app -n prod --replicas=$NEW_REPLICAS
+fi
+```
+
+### Monitoring Script
+
+```bash
+#!/bin/bash
+# Alert on anomalies
+
+RESULT=$(helios detect -d my-app -n prod -f json)
+STATUS=$(echo $RESULT | jq -r '.status')
+
+if [ "$STATUS" = "ANOMALY" ]; then
+  # Send alert
+  curl -X POST $SLACK_WEBHOOK -d "{\"text\": \"Anomaly detected in my-app!\"}"
+fi
+```
+
+## Troubleshooting
+
+### Connection Errors
+
+```bash
+# Check endpoint is reachable
+curl http://helios-inference:8080/health
+
+# Verify environment variable
+echo $HELIOS_ENDPOINT
+```
+
+### No Data
+
+If predictions return empty results:
+
+1. Ensure the agent is collecting metrics for the deployment
+2. Check the namespace matches
+3. Verify metrics are being ingested: `curl http://helios-inference:8080/models`
 
 ## License
 
-Apache License 2.0
+Apache 2.0
