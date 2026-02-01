@@ -107,18 +107,32 @@ class ModelManager:
             if model_path.exists():
                 with open(model_path, "rb") as f:
                     model_data = pickle.load(f)
-                self._models["baseline"] = TrainedForecaster(
-                    model=model_data.get("model"), scaler=model_data.get("scaler"), lookback=12
-                )
+                
+                # Check if it's the new portable format
+                if model_data.get("type") == "baseline":
+                    # Create a PortableBaseline from saved parameters
+                    self._models["baseline"] = PortableBaseline(
+                        moving_average=model_data.get("moving_average", 0.5),
+                        trend=model_data.get("trend", 0.0),
+                        std=model_data.get("std", 0.1),
+                        window=model_data.get("window", 12),
+                    )
+                    logger.info("Loaded portable baseline model")
+                else:
+                    # Old format - try to use as TrainedForecaster
+                    self._models["baseline"] = TrainedForecaster(
+                        model=model_data.get("model"), scaler=model_data.get("scaler"), lookback=12
+                    )
+                    logger.info("Loaded trained baseline model from GCS")
+                
                 self._model_info["baseline"] = ModelInfo(
                     name="baseline",
                     type=ModelType.BASELINE,
                     version="1.0.0",
                     loaded_at=datetime.utcnow(),
                     metrics=["cpu_utilization", "memory_utilization"],
-                    performance={"source": "gcs", "framework": "xgboost"},
+                    performance={},
                 )
-                logger.info("Loaded trained baseline model from GCS")
                 return True
             else:
                 # Create in-memory baseline if no saved model
@@ -142,16 +156,26 @@ class ModelManager:
         try:
             model_path = self.models_dir / "prophet_model.joblib"
             if model_path.exists():
-                self._models["prophet"] = joblib.load(model_path)
+                model_data = joblib.load(model_path)
+                
+                # Check if it's the new portable format
+                if isinstance(model_data, dict) and model_data.get("type") == "prophet":
+                    self._models["prophet"] = PortableProphet(model=model_data.get("model"))
+                    metrics = model_data.get("metrics", {})
+                    logger.info("Loaded portable Prophet model")
+                else:
+                    # Old format - use directly
+                    self._models["prophet"] = model_data
+                    metrics = {}
+                
                 self._model_info["prophet"] = ModelInfo(
                     name="prophet",
                     type=ModelType.PROPHET,
                     version="1.0.0",
                     loaded_at=datetime.utcnow(),
                     metrics=["cpu_utilization", "memory_bytes"],
-                    performance={"mape": 0.211, "coverage": 0.469},
+                    performance={"mape": metrics.get("mape", 0.0), "coverage": metrics.get("coverage", 0.0)},
                 )
-                logger.info("Loaded Prophet model")
                 return True
             else:
                 logger.warning("Prophet model file not found, skipping")
@@ -174,18 +198,31 @@ class ModelManager:
             if model_path.exists():
                 with open(model_path, "rb") as f:
                     model_data = pickle.load(f)
-                self._models["xgboost"] = TrainedAnomalyDetector(
-                    model=model_data.get("model"), scaler=model_data.get("scaler")
-                )
+                
+                # Check if it's the new portable format
+                if model_data.get("type") == "xgboost_anomaly":
+                    self._models["xgboost"] = TrainedAnomalyDetector(
+                        model=model_data.get("model"),
+                        scaler=model_data.get("scaler"),
+                        threshold_sigma=model_data.get("threshold_sigma", 2.5),
+                    )
+                    # Store threshold
+                    self._models["xgboost"].threshold_ = model_data.get("threshold")
+                    self._models["xgboost"].feature_names_ = model_data.get("feature_names", [])
+                    logger.info("Loaded portable XGBoost anomaly detector")
+                else:
+                    self._models["xgboost"] = TrainedAnomalyDetector(
+                        model=model_data.get("model"), scaler=model_data.get("scaler")
+                    )
+                
                 self._model_info["xgboost"] = ModelInfo(
                     name="xgboost",
                     type=ModelType.XGBOOST,
                     version="1.0.0",
                     loaded_at=datetime.utcnow(),
                     metrics=["anomaly_detection"],
-                    performance={"source": "gcs", "framework": "isolation_forest"},
+                    performance={},
                 )
-                logger.info("Loaded trained anomaly detector from GCS")
                 return True
             else:
                 # Create in-memory detector if no saved model
@@ -236,6 +273,80 @@ class ModelManager:
             "loaded_at": self._loaded_at.isoformat() if self._loaded_at else None,
             "models": {name: info.model_dump() for name, info in self._model_info.items()},
         }
+
+
+class PortableBaseline:
+    """Baseline model loaded from portable saved parameters."""
+
+    def __init__(self, moving_average: float, trend: float, std: float, window: int = 12):
+        self.moving_average = moving_average
+        self.trend = trend
+        self.std = std
+        self.window = window
+
+    def update(self, metric: str, value: float):
+        """No-op for portable model - uses saved parameters."""
+        pass
+
+    def predict(self, metric: str, periods: int) -> list[float]:
+        """Predict using saved moving average and trend."""
+        predictions = []
+        for i in range(periods):
+            pred = self.moving_average + self.trend * (i + 1)
+            predictions.append(max(0, pred))
+        return predictions
+
+    def get_confidence_interval(self, metric: str, periods: int, confidence: float = 0.95) -> tuple:
+        """Get confidence interval using saved standard deviation."""
+        z_score = 1.96 if confidence == 0.95 else 2.576
+        predictions = self.predict(metric, periods)
+        lower = [max(0, p - z_score * self.std) for p in predictions]
+        upper = [p + z_score * self.std for p in predictions]
+        return (lower, upper)
+
+
+class PortableProphet:
+    """Prophet model wrapper for portable saved model."""
+
+    def __init__(self, model):
+        self.model = model
+
+    def predict(self, metric: str, periods: int) -> list[float]:
+        """Generate predictions using Prophet model."""
+        import pandas as pd
+        from datetime import datetime, timedelta
+        
+        if self.model is None:
+            return [0.5] * periods
+        
+        try:
+            # Create future dataframe
+            future = self.model.make_future_dataframe(periods=periods, freq='5min')
+            forecast = self.model.predict(future)
+            
+            # Get last `periods` predictions
+            predictions = forecast['yhat'].tail(periods).tolist()
+            return [max(0, p) for p in predictions]
+        except Exception:
+            return [0.5] * periods
+
+    def get_confidence_interval(self, metric: str, periods: int, confidence: float = 0.95) -> tuple:
+        """Get Prophet confidence intervals."""
+        import pandas as pd
+        
+        if self.model is None:
+            return ([0.4] * periods, [0.6] * periods)
+        
+        try:
+            future = self.model.make_future_dataframe(periods=periods, freq='5min')
+            forecast = self.model.predict(future)
+            
+            lower = forecast['yhat_lower'].tail(periods).tolist()
+            upper = forecast['yhat_upper'].tail(periods).tolist()
+            return (lower, upper)
+        except Exception:
+            predictions = self.predict(metric, periods)
+            return ([p * 0.9 for p in predictions], [p * 1.1 for p in predictions])
 
 
 class InMemoryBaseline:
