@@ -6,14 +6,17 @@ anomaly detection, and scaling recommendations.
 """
 
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 # Version
 __version__ = "0.1.0"
@@ -477,6 +480,198 @@ async def get_stats() -> dict[str, Any]:
         "anomaly_detector": anomaly_detector_service.get_stats(),
         "recommender": recommender_service.get_stats(),
     }
+
+
+# =============================================================================
+# Deployment & Agent Endpoints (Web UI)
+# =============================================================================
+
+from .db import (
+    deployment_store,
+    Deployment,
+    DeploymentCreate,
+    DeploymentUpdate,
+    Agent,
+    AgentRegister,
+    AgentHeartbeat,
+)
+
+
+@app.get(
+    "/api/deployments",
+    response_model=list[Deployment],
+    tags=["Deployments"],
+    summary="List all deployments",
+)
+async def list_deployments() -> list[Deployment]:
+    """Get all deployments."""
+    return deployment_store.list_deployments()
+
+
+@app.post(
+    "/api/deployments",
+    response_model=Deployment,
+    tags=["Deployments"],
+    summary="Create a deployment",
+)
+async def create_deployment(data: DeploymentCreate) -> Deployment:
+    """Create a new deployment."""
+    try:
+        return deployment_store.create_deployment(data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get(
+    "/api/deployments/{deployment_id}",
+    response_model=Deployment,
+    tags=["Deployments"],
+    summary="Get a deployment",
+)
+async def get_deployment(deployment_id: str) -> Deployment:
+    """Get a deployment by ID."""
+    deployment = deployment_store.get_deployment(deployment_id)
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    return deployment
+
+
+@app.patch(
+    "/api/deployments/{deployment_id}",
+    response_model=Deployment,
+    tags=["Deployments"],
+    summary="Update a deployment",
+)
+async def update_deployment(deployment_id: str, data: DeploymentUpdate) -> Deployment:
+    """Update a deployment."""
+    try:
+        deployment = deployment_store.update_deployment(deployment_id, data)
+        if not deployment:
+            raise HTTPException(status_code=404, detail="Deployment not found")
+        return deployment
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete(
+    "/api/deployments/{deployment_id}",
+    tags=["Deployments"],
+    summary="Delete a deployment",
+)
+async def delete_deployment(deployment_id: str) -> dict[str, str]:
+    """Delete a deployment and its agents."""
+    if not deployment_store.delete_deployment(deployment_id):
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    return {"status": "deleted"}
+
+
+@app.get(
+    "/api/deployments/{deployment_id}/metrics",
+    response_model=list[str],
+    tags=["Deployments"],
+    summary="Get available metrics for a deployment",
+)
+async def get_deployment_metrics(deployment_id: str) -> list[str]:
+    """Get unique metrics available in a deployment."""
+    if not deployment_store.get_deployment(deployment_id):
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    return deployment_store.get_deployment_metrics(deployment_id)
+
+
+@app.get(
+    "/api/deployments/{deployment_id}/agents",
+    response_model=list[Agent],
+    tags=["Agents"],
+    summary="List agents in a deployment",
+)
+async def list_deployment_agents(deployment_id: str) -> list[Agent]:
+    """Get all agents in a deployment."""
+    if not deployment_store.get_deployment(deployment_id):
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    return deployment_store.list_agents(deployment_id)
+
+
+@app.post(
+    "/api/deployments/{deployment_id}/agents/register",
+    response_model=Agent,
+    tags=["Agents"],
+    summary="Register an agent",
+)
+async def register_agent(deployment_id: str, data: AgentRegister) -> Agent:
+    """Register a new agent or update existing."""
+    try:
+        return deployment_store.register_agent(deployment_id, data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get(
+    "/api/agents/{agent_id}",
+    response_model=Agent,
+    tags=["Agents"],
+    summary="Get an agent",
+)
+async def get_agent(agent_id: str) -> Agent:
+    """Get an agent by ID."""
+    agent = deployment_store.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return agent
+
+
+@app.post(
+    "/api/agents/{agent_id}/heartbeat",
+    response_model=Agent,
+    tags=["Agents"],
+    summary="Agent heartbeat",
+)
+async def agent_heartbeat(agent_id: str, data: AgentHeartbeat) -> Agent:
+    """Update agent heartbeat."""
+    agent = deployment_store.heartbeat_agent(agent_id, data)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return agent
+
+
+@app.delete(
+    "/api/agents/{agent_id}",
+    tags=["Agents"],
+    summary="Delete an agent",
+)
+async def delete_agent(agent_id: str) -> dict[str, str]:
+    """Delete an agent."""
+    if not deployment_store.delete_agent(agent_id):
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return {"status": "deleted"}
+
+
+# =============================================================================
+# Static Files (Web UI)
+# =============================================================================
+
+# Serve static files if they exist (production build)
+STATIC_DIR = Path(__file__).parent / "static"
+if STATIC_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(STATIC_DIR / "assets")), name="assets")
+    
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        """Serve the Vue.js SPA for all non-API routes."""
+        # Don't serve for API routes
+        if full_path.startswith("api/") or full_path in ["docs", "redoc", "openapi.json", "health", "ready", "metrics"]:
+            raise HTTPException(status_code=404, detail="Not found")
+        
+        # Try to serve the requested file
+        file_path = STATIC_DIR / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+        
+        # Fallback to index.html for SPA routing
+        index_path = STATIC_DIR / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path)
+        
+        raise HTTPException(status_code=404, detail="Not found")
 
 
 # =============================================================================
