@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm;
+  }
+  
+  .btn-primary {
+    @apply px-4 py-2 bg-helios-500 hover:bg-helios-600 text-white rounded-lg font-medium transition-colors;
+  }
+  
+  .btn-secondary {
+    @apply px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-medium transition-colors;
+  }
+  
+  .input {
+    @apply w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-helios-500 focus:border-transparent outline-none transition-all;
+  }
+  
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition-colors;
+  }
+  
+  .sidebar-link-active {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg bg-helios-50 dark:bg-helios-900/30 text-helios-600 dark:text-helios-400 font-medium;
+  }
+}
