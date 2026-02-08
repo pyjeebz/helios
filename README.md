@@ -12,37 +12,50 @@ Helios uses machine learning to forecast infrastructure demand, detect anomalies
 
 ## 🚀 Quick Start
 
-### Local Development
+### Option 1: Docker (Easiest)
 
 ```bash
+docker run -d -p 8080:8080 ghcr.io/pyjeebz/helios/inference:latest
+# Open http://localhost:8080
+```
+
+### Option 2: Local Development
+
+**Prerequisites:** Python 3.10+, Node.js 18+
+
+```bash
+# Clone and setup
 git clone https://github.com/pyjeebz/helios.git
 cd helios
 
-# Docker Compose (recommended)
-docker compose up -d inference
-curl http://localhost:8080/health
-
-# Or run directly
+# Python environment
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+.venv\Scripts\activate         # Windows
+# source .venv/bin/activate    # macOS/Linux
 pip install -r ml/inference/requirements.txt
-cd ml && python -m uvicorn inference.app:app --port 8080
+
+# Start backend (Terminal 1)
+python -m uvicorn ml.inference.app:app --host 0.0.0.0 --port 8080
+
+# Start frontend (Terminal 2)
+cd ml/inference/web
+npm install
+npm run dev
+# Open http://localhost:3000
 ```
 
-### Cloud Deployment
+### Option 3: Kubernetes (Helm)
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/pyjeebz/helios)
-
-**Docker:**
-```bash
-docker run -d -p 8080:8080 ghcr.io/pyjeebz/helios/inference:latest
-```
-
-**Kubernetes (Helm):**
 ```bash
 helm repo add helios https://pyjeebz.github.io/helios
 helm install helios helios/helios
 ```
+
+### First Steps After Setup
+
+1. **Deployments** → Create a deployment (e.g., `my-app-prod`)
+2. **Install Agent** → Copy commands, run on your server
+3. **Dashboard** → View predictions, anomalies, recommendations
 
 ---
 
