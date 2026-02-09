@@ -223,7 +223,7 @@ watch(() => deploymentsStore.currentDeploymentId, async (newId) => {
                 <div v-for="(action, aidx) in rec.actions" :key="aidx" class="mt-2 text-sm text-amber-700 dark:text-amber-300">
                   <p>{{ action.reason }}</p>
                   <p class="text-xs mt-1 text-amber-600">
-                    {{ (action.confidence * 100).toFixed(0) }}% confidence
+                    {{ ((action.confidence ?? 0) * 100).toFixed(0) }}% confidence
                   </p>
                 </div>
               </div>
