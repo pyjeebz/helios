@@ -94,7 +94,7 @@ const detectAnomalies = async () => {
         agent: 'system',
         value: a.value * 100,
         unit: '%',
-        deviation: `${a.score > 0 ? '+' : ''}${a.score.toFixed(1)}σ`,
+        deviation: `${(a.score ?? 0) > 0 ? '+' : ''}${(a.score ?? 0).toFixed(1)}σ`,
         severity,
         time: timeAgo,
         timestamp
@@ -239,7 +239,7 @@ onUnmounted(() => {
                 {{ anomaly.metric }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium" :class="anomaly.severity === 'critical' ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'">
-                {{ anomaly.value.toFixed(1) }}{{ anomaly.unit }}
+                {{ (anomaly.value ?? 0).toFixed(1) }}{{ anomaly.unit }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                 {{ anomaly.deviation }}
