@@ -72,6 +72,11 @@ class SystemSource(MetricsSource):
             if options.get("collect_network", True):
                 metrics.extend(self._collect_network(now))
             
+            # Merge config-level labels (like deployment) into each metric
+            if self.config.labels:
+                for metric in metrics:
+                    metric.labels.update(self.config.labels)
+            
             duration = (time.time() - start) * 1000
             
             return CollectionResult(
