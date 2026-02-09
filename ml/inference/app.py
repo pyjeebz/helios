@@ -440,7 +440,7 @@ async def ingest_metrics(request: Request) -> dict:
         first_metric = metrics[0]
         labels = first_metric.get("labels", {})
         deployment_id = labels.get("deployment")
-        hostname = labels.get("hostname", "unknown")
+        hostname = labels.get("host") or labels.get("hostname", "unknown")
         
         if deployment_id:
             try:
