@@ -14,13 +14,13 @@ export default defineConfig({
     proxy: {
       // Rewrite /api/v1/* to /* for ML endpoints (predict, detect, recommend)
       '/api/v1': {
-        target: 'http://127.0.0.1:8080',
+        target: 'http://127.0.0.1:8081',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/v1/, '')
       },
       // Keep /api/* as-is for deployments, agents endpoints
       '/api': {
-        target: 'http://127.0.0.1:8080',
+        target: 'http://127.0.0.1:8081',
         changeOrigin: true
         // No rewrite - backend expects /api/deployments, /api/metrics, etc.
       }
