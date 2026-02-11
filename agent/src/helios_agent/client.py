@@ -51,17 +51,17 @@ class HeliosClient:
             )
         return self._client
     
-    async def send_metrics(self, metrics: list) -> bool:
+    async def send_metrics(self, metrics: list) -> Optional[dict]:
         """Send metrics to Helios API.
         
         Args:
             metrics: List of metric samples to send
             
         Returns:
-            True if successful, False otherwise
+            Response dict with 'received' and optional 'commands', or None on failure
         """
         if not metrics:
-            return True
+            return {"received": 0}
         
         payload = {
             "metrics": [m.to_dict() for m in metrics],
@@ -80,10 +80,10 @@ class HeliosClient:
                 
                 if response.status_code == 200:
                     logger.debug(f"Successfully sent {len(metrics)} metrics")
-                    return True
+                    return response.json()
                 elif response.status_code == 401:
                     logger.error("Authentication failed - check API key")
-                    return False
+                    return None
                 elif response.status_code == 429:
                     # Rate limited
                     retry_after = float(response.headers.get("Retry-After", self.retry_delay * 2))
@@ -101,7 +101,7 @@ class HeliosClient:
                 await asyncio.sleep(self.retry_delay * (attempt + 1))
         
         logger.error(f"Failed to send {len(metrics)} metrics after {self.retry_attempts} attempts")
-        return False
+        return None
     
     async def check_health(self) -> bool:
         """Check if Helios API is healthy."""
