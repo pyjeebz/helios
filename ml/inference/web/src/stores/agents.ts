@@ -11,6 +11,8 @@ export interface Agent {
     agent_version: string
     status: 'online' | 'warning' | 'offline'
     last_seen: string
+    paused: boolean
+    collection_interval: number
     metrics: string[]
     metrics_count: number
     location?: string
@@ -67,6 +69,20 @@ export const useAgentsStore = defineStore('agents', () => {
         }
     }
 
+    async function updateAgentConfig(agentId: string, config: { paused?: boolean; collection_interval?: number }) {
+        try {
+            const response = await api.patch(`/agents/${agentId}/config`, config)
+            const idx = agents.value.findIndex(a => a.id === agentId)
+            if (idx !== -1) {
+                agents.value[idx] = response.data
+            }
+            return response.data
+        } catch (e: any) {
+            error.value = e.message || 'Failed to update agent config'
+            throw e
+        }
+    }
+
     return {
         agents,
         currentDeploymentAgents,
@@ -76,6 +92,7 @@ export const useAgentsStore = defineStore('agents', () => {
         loading,
         error,
         fetchAgents,
-        deleteAgent
+        deleteAgent,
+        updateAgentConfig
     }
 })
