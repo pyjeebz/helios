@@ -6,6 +6,10 @@
 .env.local
 .env.*.local
 !.env.example
+# SQLite database
+*.db
+*.db-wal
+*.db-shm
 # Terraform
 *.tfstate
 *.tfstate.*
