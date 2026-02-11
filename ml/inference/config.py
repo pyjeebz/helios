@@ -72,6 +72,27 @@ class RecommendationConfig:
     max_replicas: int = 100
 
 
+
+@dataclass
+class GcpConfig:
+    """Google Cloud Platform configuration."""
+    
+    project_id: str = ""
+
+
+@dataclass
+class RetrainingConfig:
+    """Automated model retraining configuration."""
+
+    enabled: bool = True
+    interval_hours: int = 6           # Retrain every N hours
+    training_hours: int = 24          # Fetch last N hours from platform
+    min_data_points: int = 100        # Skip retrain if < N data points
+    auto_deploy: bool = True          # Auto-swap if new model is better
+    min_improvement: float = 0.05     # 5% improvement required to deploy
+    data_source: str = "gcp"          # "gcp" | "cloudwatch"
+
+
 @dataclass
 class InferenceConfig:
     """Main configuration class."""
@@ -82,6 +103,8 @@ class InferenceConfig:
     anomaly: AnomalyConfig = field(default_factory=AnomalyConfig)
     recommendation: RecommendationConfig = field(default_factory=RecommendationConfig)
     auth: AuthConfig = field(default_factory=AuthConfig)
+    retraining: RetrainingConfig = field(default_factory=RetrainingConfig)
+    gcp: GcpConfig = field(default_factory=GcpConfig)
 
     # Environment
     environment: str = "development"
@@ -125,6 +148,18 @@ class InferenceConfig:
             auth=AuthConfig(
                 enabled=os.getenv("AUTH_ENABLED", "false").lower() == "true",
                 api_key=os.getenv("HELIOS_API_KEY", ""),
+            ),
+            retraining=RetrainingConfig(
+                enabled=os.getenv("RETRAIN_ENABLED", "true").lower() == "true",
+                interval_hours=int(os.getenv("RETRAIN_INTERVAL_HOURS", "6")),
+                training_hours=int(os.getenv("RETRAIN_TRAINING_HOURS", "24")),
+                min_data_points=int(os.getenv("RETRAIN_MIN_DATA_POINTS", "100")),
+                auto_deploy=os.getenv("RETRAIN_AUTO_DEPLOY", "true").lower() == "true",
+                min_improvement=float(os.getenv("RETRAIN_MIN_IMPROVEMENT", "0.05")),
+                data_source=os.getenv("RETRAIN_DATA_SOURCE", "gcp"),
+            ),
+            gcp=GcpConfig(
+                project_id=os.getenv("GOOGLE_CLOUD_PROJECT", os.getenv("GCP_PROJECT_ID", "")),
             ),
             environment=os.getenv("ENVIRONMENT", "development"),
             debug=os.getenv("DEBUG", "false").lower() == "true",
