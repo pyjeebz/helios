@@ -93,6 +93,30 @@ export interface RecommendationResponse {
     recommendations: Recommendation[]
 }
 
+// Retraining types
+export interface TrainingRunInfo {
+    started_at: string | null
+    completed_at: string | null
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
+    data_source: string
+    data_points: number
+    training_hours: number
+    metrics: Record<string, any>
+    deployed: boolean
+    error: string | null
+}
+
+export interface RetrainStatus {
+    enabled: boolean
+    running: boolean
+    data_source: string
+    interval_hours: number
+    training_hours: number
+    next_run: string | null
+    total_runs: number
+    last_run: TrainingRunInfo | null
+}
+
 // ML API methods
 export const mlApi = {
     predict: (request: PredictionRequest): Promise<PredictionResponse> =>
@@ -105,7 +129,17 @@ export const mlApi = {
         api.post('/v1/detect', request).then(res => res.data),
 
     recommend: (request: RecommendationRequest): Promise<RecommendationResponse> =>
-        api.post('/v1/recommend', request).then(res => res.data)
+        api.post('/v1/recommend', request).then(res => res.data),
+
+    // Retraining
+    getRetrainStatus: (): Promise<RetrainStatus> =>
+        api.get('/retrain/status').then(res => res.data),
+
+    triggerRetrain: (hours?: number): Promise<TrainingRunInfo> =>
+        api.post('/retrain/trigger', hours ? { hours } : {}).then(res => res.data),
+
+    getRetrainHistory: (limit = 10): Promise<{ history: TrainingRunInfo[] }> =>
+        api.get(`/retrain/history?limit=${limit}`).then(res => res.data),
 }
 
 export default api
