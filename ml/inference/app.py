@@ -38,6 +38,7 @@ from .metrics import (
     set_recommended_replicas,
 )
 from .model_manager import model_manager
+from .retrain_scheduler import retrain_scheduler
 from .models import (
     AnomalyRequest,
     AnomalyResponse,
@@ -91,9 +92,14 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("No models loaded, service may not function correctly")
 
+    # Start retrain scheduler
+    retrain_scheduler._model_manager = model_manager
+    retrain_scheduler.start()
+
     yield
 
     # Shutdown
+    retrain_scheduler.stop()
     logger.info("Shutting down Helios Inference Service...")
     set_ready(False)
 
@@ -466,7 +472,18 @@ async def ingest_metrics(request: Request) -> dict:
         # ignore if metrics helper isn't available or fails
         pass
 
-    return {"received": received}
+    # Build response with agent control commands if agent is registered
+    response = {"received": received}
+    if metrics and deployment_id:
+        agent_id_candidate = f"{hostname[:8]}-{deployment_id[:4]}"
+        try:
+            config = deployment_store.get_agent_config(agent_id_candidate)
+            if config:
+                response["commands"] = config
+        except Exception:
+            pass  # get_agent_config may not exist on in-memory store
+
+    return response
 
 
 # =============================================================================
@@ -572,6 +589,7 @@ from .db import (
     Agent,
     AgentRegister,
     AgentHeartbeat,
+    AgentConfigUpdate,
 )
 
 
@@ -721,6 +739,67 @@ async def delete_agent(agent_id: str) -> dict[str, str]:
     if not deployment_store.delete_agent(agent_id):
         raise HTTPException(status_code=404, detail="Agent not found")
     return {"status": "deleted"}
+
+
+@app.patch(
+    "/api/agents/{agent_id}/config",
+    response_model=Agent,
+    tags=["Agents"],
+    summary="Update agent configuration",
+)
+async def update_agent_config(agent_id: str, data: AgentConfigUpdate) -> Agent:
+    """Update agent configuration (pause/resume, collection interval)."""
+    agent = deployment_store.update_agent_config(agent_id, data)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return agent
+
+
+@app.get(
+    "/api/agents/{agent_id}/config",
+    tags=["Agents"],
+    summary="Get agent control config",
+)
+async def get_agent_config(agent_id: str) -> dict:
+    """Get agent configuration for polling."""
+    config = deployment_store.get_agent_config(agent_id)
+    if not config:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return config
+
+
+# =============================================================================
+# Retraining Endpoints
+# =============================================================================
+
+
+@app.get("/api/retrain/status")
+async def get_retrain_status():
+    """Get the retrain scheduler status."""
+    return retrain_scheduler.get_status()
+
+
+@app.post("/api/retrain/trigger")
+async def trigger_retrain(request: Request):
+    """Manually trigger a retrain cycle.
+
+    Accepts optional JSON body: {"hours": 24}
+    """
+    hours = None
+    try:
+        body = await request.json()
+        hours = body.get("hours")
+    except Exception:
+        pass
+
+    run = await retrain_scheduler.trigger_retrain(hours=hours)
+    return run.to_dict()
+
+
+@app.get("/api/retrain/history")
+async def get_retrain_history(limit: int = 10):
+    """Get training run history."""
+    return {"history": retrain_scheduler.get_history(limit=limit)}
 
 
 # =============================================================================
