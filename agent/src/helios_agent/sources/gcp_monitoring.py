@@ -164,6 +164,10 @@ class GCPMonitoringSource(MetricsSource):
                 labels.update({f"resource_{k}": v for k, v in ts.resource.labels.items()})
                 labels["resource_type"] = ts.resource.type
                 
+                # Merge static labels from config (e.g. deployment ID)
+                if self.config.labels:
+                    labels.update(self.config.labels)
+                
                 # Get latest point
                 points = list(ts.points)
                 if points:
