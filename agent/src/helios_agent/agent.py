@@ -31,6 +31,8 @@ class Agent:
         self.sources: list[MetricsSource] = []
         self.client: Optional[HeliosClient] = None
         self._running = False
+        self._paused = False
+        self._interval_override: Optional[int] = None  # Server-controlled interval
         self._metrics_buffer: list[MetricSample] = []
         self._last_flush = datetime.now(timezone.utc)
     
@@ -129,6 +131,12 @@ class Agent:
     async def _run_source(self, source: MetricsSource):
         """Run a source collection loop."""
         while self._running:
+            # Check if paused
+            if self._paused:
+                logger.debug(f"Agent paused, skipping collection from {source.name}")
+                await asyncio.sleep(5)  # Check pause state every 5s
+                continue
+            
             try:
                 result = await source.collect()
                 
@@ -145,7 +153,9 @@ class Agent:
             except Exception as e:
                 logger.error(f"Error running source {source.name}: {e}")
             
-            await asyncio.sleep(source.config.interval)
+            # Use server-controlled interval if available, else source default
+            interval = self._interval_override or source.config.interval
+            await asyncio.sleep(interval)
     
     async def _flush_loop(self):
         """Periodically flush metrics to Helios."""
@@ -168,10 +178,15 @@ class Agent:
         self._metrics_buffer = self._metrics_buffer[self.config.batch_size:]
         
         # Send metrics
-        success = await self.client.send_metrics(metrics_to_send)
+        result = await self.client.send_metrics(metrics_to_send)
         
-        if success:
+        if result is not None:
             logger.info(f"Sent {len(metrics_to_send)} metrics to Helios")
+            
+            # Apply control commands from server
+            commands = result.get("commands")
+            if commands:
+                self._apply_commands(commands)
         else:
             # Re-add failed metrics to buffer (at the front)
             self._metrics_buffer = metrics_to_send + self._metrics_buffer
@@ -181,6 +196,22 @@ class Agent:
                 dropped = len(self._metrics_buffer) - max_buffer
                 self._metrics_buffer = self._metrics_buffer[:max_buffer]
                 logger.warning(f"Buffer full, dropped {dropped} oldest metrics")
+    
+    def _apply_commands(self, commands: dict):
+        """Apply control commands received from the server."""
+        if "paused" in commands:
+            new_paused = bool(commands["paused"])
+            if new_paused != self._paused:
+                self._paused = new_paused
+                state = "PAUSED" if new_paused else "RESUMED"
+                logger.info(f"Agent {state} by server command")
+        
+        if "collection_interval" in commands:
+            new_interval = int(commands["collection_interval"])
+            if new_interval != self._interval_override:
+                old = self._interval_override or "default"
+                self._interval_override = new_interval
+                logger.info(f"Collection interval changed: {old} -> {new_interval}s")
     
     async def collect_once(self) -> list[MetricSample]:
         """Run all sources once and return metrics."""
