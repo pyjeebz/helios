@@ -78,6 +78,10 @@ class Agent(BaseModel):
     last_seen: datetime = Field(default_factory=datetime.utcnow)
     registered_at: datetime = Field(default_factory=datetime.utcnow)
     
+    # Management controls
+    paused: bool = Field(False, description="Whether the agent is paused")
+    collection_interval: int = Field(15, description="Collection interval in seconds")
+    
     # Metrics info
     metrics: list[str] = Field(default_factory=list)
     metrics_count: int = 0
@@ -106,6 +110,12 @@ class AgentHeartbeat(BaseModel):
     """Agent heartbeat request."""
     metrics_count: int = Field(0, description="Total metrics sent")
     metrics: list[str] = Field(default_factory=list, description="Available metrics")
+
+
+class AgentConfigUpdate(BaseModel):
+    """Request to update agent configuration."""
+    paused: Optional[bool] = Field(None, description="Pause or resume the agent")
+    collection_interval: Optional[int] = Field(None, ge=5, le=3600, description="Collection interval in seconds (5-3600)")
 
 
 # =============================================================================
@@ -296,6 +306,8 @@ class DeploymentStore:
         offline_threshold = timedelta(minutes=5)
         
         for agent in self._agents.values():
+            if agent.paused:
+                continue
             time_since = now - agent.last_seen
             if time_since > offline_threshold:
                 agent.status = AgentStatus.OFFLINE
@@ -303,6 +315,27 @@ class DeploymentStore:
                 agent.status = AgentStatus.WARNING
             else:
                 agent.status = AgentStatus.ONLINE
+
+    def update_agent_config(self, agent_id: str, data: AgentConfigUpdate):
+        """Update agent configuration."""
+        agent = self._agents.get(agent_id)
+        if not agent:
+            return None
+        if data.paused is not None:
+            agent.paused = data.paused
+        if data.collection_interval is not None:
+            agent.collection_interval = data.collection_interval
+        return agent
+
+    def get_agent_config(self, agent_id: str):
+        """Get agent control config."""
+        agent = self._agents.get(agent_id)
+        if not agent:
+            return None
+        return {
+            "paused": agent.paused,
+            "collection_interval": agent.collection_interval,
+        }
 
 
 # =============================================================================
@@ -411,6 +444,16 @@ class MetricsStore:
         return sorted(names)
 
 
-# Global store instances
-deployment_store = DeploymentStore()
-metrics_store = MetricsStore()
+# Global store instances — SQLite-backed for persistence
+# Falls back to in-memory if SQLite import fails
+try:
+    from .storage.sqlite_backend import SQLiteDeploymentStore, SQLiteMetricsStore
+    deployment_store = SQLiteDeploymentStore()
+    metrics_store = SQLiteMetricsStore()
+    _storage_backend = "sqlite"
+except Exception as _e:
+    import logging as _log
+    _log.getLogger(__name__).warning(f"SQLite storage unavailable ({_e}), using in-memory")
+    deployment_store = DeploymentStore()
+    metrics_store = MetricsStore()
+    _storage_backend = "memory"
