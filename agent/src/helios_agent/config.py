@@ -70,6 +70,20 @@ class AgentConfig:
         # Parse sources
         config.sources = []
         for source_data in data.get("sources", []):
+            # Ensure list types
+            metrics = source_data.get("metrics", [])
+            if isinstance(metrics, str):
+                metrics = [metrics]
+            
+            queries = source_data.get("queries", [])
+            if isinstance(queries, str):
+                queries = [queries]
+
+            # Merge top-level project_id into credentials
+            credentials = source_data.get("credentials", {}).copy()
+            if "project_id" in source_data:
+                credentials["project_id"] = source_data["project_id"]
+
             source_config = SourceConfig(
                 name=source_data.get("name", source_data.get("type", "unknown")),
                 type=source_data.get("type"),
@@ -77,9 +91,9 @@ class AgentConfig:
                 interval=source_data.get("interval", 15),
                 endpoint=source_data.get("endpoint"),
                 api_key=source_data.get("api_key") or os.environ.get(f"{source_data.get('type', '').upper()}_API_KEY"),
-                credentials=source_data.get("credentials", {}),
-                queries=source_data.get("queries", []),
-                metrics=source_data.get("metrics", []),
+                credentials=credentials,
+                queries=queries,
+                metrics=metrics,
                 namespaces=source_data.get("namespaces", []),
                 labels=source_data.get("labels", {}),
                 options=source_data.get("options", {}),
