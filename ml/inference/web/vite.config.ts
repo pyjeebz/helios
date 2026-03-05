@@ -1,9 +1,9 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [react()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
@@ -12,17 +12,14 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      // Rewrite /api/v1/* to /* for ML endpoints (predict, detect, recommend)
       '/api/v1': {
         target: 'http://127.0.0.1:8001',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/v1/, '')
       },
-      // Keep /api/* as-is for deployments, agents endpoints
       '/api': {
         target: 'http://127.0.0.1:8001',
         changeOrigin: true
-        // No rewrite - backend expects /api/deployments, /api/metrics, etc.
       }
     }
   },
