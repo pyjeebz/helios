@@ -1,21 +1,11 @@
 import axios from 'axios'
 
-// API base instance - proxied through vite config
 const api = axios.create({
     baseURL: '/api',
-    headers: {
-        'Content-Type': 'application/json'
-    }
+    headers: { 'Content-Type': 'application/json' }
 })
 
-// Prediction types
-export interface PredictionRequest {
-    metric: string
-    periods: number
-    model?: string
-    include_confidence?: boolean
-}
-
+/* ─── Types ─── */
 export interface PredictionPoint {
     timestamp: string
     value: number
@@ -29,17 +19,6 @@ export interface PredictionResponse {
     periods: number
     predictions: PredictionPoint[]
     metadata?: Record<string, any>
-}
-
-// Anomaly types
-export interface DataPoint {
-    timestamp: string
-    value: number
-}
-
-export interface AnomalyRequest {
-    metrics: Record<string, DataPoint[]>
-    threshold_sigma?: number
 }
 
 export interface Anomaly {
@@ -59,21 +38,6 @@ export interface AnomalyResponse {
     summary: Record<string, any>
 }
 
-// Recommendation types
-export interface RecommendationRequest {
-    workload: string
-    namespace: string
-    current_state: {
-        replicas: number
-        cpu_request: string
-        memory_request: string
-        cpu_limit?: string
-        memory_limit?: string
-    }
-    predictions?: PredictionPoint[]
-    target_utilization?: number
-}
-
 export interface RecommendationAction {
     action: string
     current?: string | number
@@ -89,11 +53,6 @@ export interface Recommendation {
     actions: RecommendationAction[]
 }
 
-export interface RecommendationResponse {
-    recommendations: Recommendation[]
-}
-
-// Retraining types
 export interface TrainingRunInfo {
     started_at: string | null
     completed_at: string | null
@@ -117,33 +76,66 @@ export interface RetrainStatus {
     last_run: TrainingRunInfo | null
 }
 
-// ML API methods
+export interface Deployment {
+    id: string
+    name: string
+    description: string
+    environment: 'development' | 'staging' | 'production'
+    created_at: string
+    updated_at: string
+    agents_count: number
+    agents_online: number
+    metrics_count: number
+}
+
+export interface Agent {
+    id: string
+    deployment_id: string
+    hostname: string
+    platform: string
+    agent_version: string
+    status: 'online' | 'warning' | 'offline'
+    last_seen: string
+    paused: boolean
+    collection_interval: number
+    metrics: string[]
+    metrics_count: number
+}
+
+/* ─── API methods ─── */
 export const mlApi = {
-    predict: (request: PredictionRequest): Promise<PredictionResponse> =>
-        api.post('/v1/predict', request).then(res => res.data),
+    predict: (metric: string, periods: number, model = 'baseline'): Promise<PredictionResponse> =>
+        api.post('/v1/predict', { metric, periods, model, include_confidence: true }).then(r => r.data),
 
-    batchPredict: (metrics: string[], periods: number, model = 'baseline') =>
-        api.post('/v1/predict/batch', { metrics, periods, model }).then(res => res.data),
+    detect: (metrics: Record<string, { timestamp: string; value: number }[]>): Promise<AnomalyResponse> =>
+        api.post('/v1/detect', { metrics }).then(r => r.data),
 
-    detect: (request: AnomalyRequest): Promise<AnomalyResponse> =>
-        api.post('/v1/detect', request).then(res => res.data),
+    recommend: (workload: string, namespace: string, replicas: number): Promise<{ recommendations: Recommendation[] }> =>
+        api.post('/v1/recommend', {
+            workload, namespace,
+            current_state: { replicas, cpu_request: '100m', memory_request: '256Mi' }
+        }).then(r => r.data),
 
-    recommend: (request: RecommendationRequest): Promise<RecommendationResponse> =>
-        api.post('/v1/recommend', request).then(res => res.data),
-
-    // Retraining
     getRetrainStatus: (): Promise<RetrainStatus> =>
-        api.get('/retrain/status').then(res => res.data),
+        api.get('/retrain/status').then(r => r.data),
 
-    triggerRetrain: (hours?: number): Promise<TrainingRunInfo> =>
-        api.post('/retrain/trigger', hours ? { hours } : {}).then(res => res.data),
+    triggerRetrain: (hours = 24): Promise<TrainingRunInfo> =>
+        api.post('/retrain/trigger', { hours }).then(r => r.data),
 
-    getRetrainHistory: (limit = 10): Promise<{ history: TrainingRunInfo[] }> =>
-        api.get(`/retrain/history?limit=${limit}`).then(res => res.data),
+    getDeployments: (): Promise<Deployment[]> =>
+        api.get('/deployments').then(r => r.data),
 
-    // Deployments
+    createDeployment: (data: { name: string; description?: string; environment?: string }): Promise<Deployment> =>
+        api.post('/deployments', data).then(r => r.data),
+
     deleteDeployment: (id: string): Promise<void> =>
-        api.delete(`/deployments/${id}`).then(res => res.data),
+        api.delete(`/deployments/${id}`).then(r => r.data),
+
+    getAgents: (deploymentId: string): Promise<Agent[]> =>
+        api.get(`/deployments/${deploymentId}/agents`).then(r => r.data),
+
+    deleteAgent: (agentId: string): Promise<void> =>
+        api.delete(`/agents/${agentId}`).then(r => r.data),
 }
 
 export default api
