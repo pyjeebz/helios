@@ -39,7 +39,7 @@ export function AgentInstallView() {
                     <Terminal className="w-5 h-5 text-indigo-400" />
                     <h2 className="font-medium" style={{ color: 'var(--text-primary)' }}>Quick Install (pip)</h2>
                 </div>
-                <CopyBlock code="pip install prescale-platform-agent" />
+                <CopyBlock code="pip install prescale-agent" />
             </div>
 
             <div className="bento-card p-6 space-y-4">
