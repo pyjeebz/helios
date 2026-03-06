@@ -6,14 +6,14 @@ Metrics collection agent for [Prescale](https://github.com/pyjeebz/prescale) - P
 
 ```bash
 # Base installation (system metrics + Prometheus)
-pip install prescale-platform-agent
+pip install prescale-agent
 
 # With specific backends
-pip install prescale-platform-agent[gcp]      # + GCP Cloud Monitoring
-pip install prescale-platform-agent[aws]      # + AWS CloudWatch
-pip install prescale-platform-agent[azure]    # + Azure Monitor
-pip install prescale-platform-agent[datadog]  # + Datadog
-pip install prescale-platform-agent[all]      # All backends
+pip install prescale-agent[gcp]      # + GCP Cloud Monitoring
+pip install prescale-agent[aws]      # + AWS CloudWatch
+pip install prescale-agent[azure]    # + Azure Monitor
+pip install prescale-agent[datadog]  # + Datadog
+pip install prescale-agent[all]      # All backends
 ```
 
 ## Quick Start
